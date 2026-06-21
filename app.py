@@ -475,11 +475,19 @@ with tab2:
         pe_df = pe_df.sort_values("日期")
         recent = pe_df.tail(500)
 
-        current_pe = float(recent.iloc[-1]["动态市盈率"])
-        pe_percentile = float(recent.iloc[-1]["动态市盈率分位"])
-        pe_median = float(recent["动态市盈率"].median())
-        pe_min = float(recent["动态市盈率"].min())
-        pe_max = float(recent["动态市盈率"].max())
+        # 兼容不同版本的列名：动态市盈率 / PE / pe
+        pe_col = next((c for c in recent.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
+        pct_col = next((c for c in recent.columns if "分位" in str(c) and "市盈率" in str(c)), None)
+        if pe_col is None:
+            pe_col = recent.select_dtypes(include=[np.number]).columns[0]
+        if pct_col is None:
+            pct_col = next((c for c in recent.columns if "分位" in str(c)), None)
+
+        current_pe = float(recent.iloc[-1][pe_col])
+        pe_percentile = float(recent.iloc[-1][pct_col]) if pct_col else float((recent[pe_col] <= current_pe).sum() / len(recent) * 100)
+        pe_median = float(recent[pe_col].median())
+        pe_min = float(recent[pe_col].min())
+        pe_max = float(recent[pe_col].max())
         pe_data_ok = True
 
         if pe_percentile < 20:
@@ -520,7 +528,8 @@ with tab2:
             unsafe_allow_html=True,
         )
 
-        chart_pe = recent.set_index("日期")[["动态市盈率"]].copy()
+        chart_pe = recent.set_index("日期")[[pe_col]].copy()
+        chart_pe.columns = ["PE"]
         chart_pe["中位数"] = pe_median
         st.line_chart(chart_pe, height=280, color=["#1a56db", "#9ca3af"])
 
@@ -616,12 +625,12 @@ with tab2:
             s = "green" if pe_percentile < 30 else ("yellow" if pe_percentile < 70 else "red")
             signals.append(("沪深300 PE 分位",
                             s,
-                            f"当前 PE = {current_pe:.1f}，历史分位 {pe_percentile:.0f}%"))
+                            f"当前 PE = {current_pe:.1f}，历史分位 {pe_percentile:.1f}%"))
         if pb_data_ok:
             s = "green" if pb_pct < 30 else ("yellow" if pb_pct < 70 else "red")
             signals.append(("全市场 PB 分位",
                             s,
-                            f"当前 PB = {cur_pb:.2f}，历史分位 {pb_pct:.0f}%"))
+                            f"当前 PB = {cur_pb:.2f}，历史分位 {pb_pct:.1f}%"))
         if ma20 is not None and ma60 is not None:
             trend_ok = ma20 > ma60
             signals.append(("均线趋势",
@@ -879,15 +888,18 @@ with tab3:
             elif rsi_now > 70:
                 rsi_level = "超买区域"
                 rsi_color = "#ea580c"
-            elif rsi_now < 20:
-                rsi_level = "严重超卖"
-                rsi_color = "#059669"
-            elif rsi_now < 30:
+            elif rsi_now > 50:
+                rsi_level = "中性偏强"
+                rsi_color = "#6b7280"
+            elif rsi_now > 30:
+                rsi_level = "中性偏弱"
+                rsi_color = "#6b7280"
+            elif rsi_now > 20:
                 rsi_level = "超卖区域"
                 rsi_color = "#059669"
             else:
-                rsi_level = "中性区间"
-                rsi_color = "#6b7280"
+                rsi_level = "严重超卖"
+                rsi_color = "#059669"
             st.markdown(
                 f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
                 f"background:{rsi_color};margin-right:6px;'></span>"
@@ -996,8 +1008,13 @@ with tab5:
         nb_chart.columns = ['当日净买额(亿)']
 
         st.line_chart(nb_chart, height=250, color=["#1a56db"])
+        latest_nb_date = nb_clean.iloc[-1, 0]
+        days_behind = (datetime.now() - latest_nb_date).days
+        stale_warning = ""
+        if days_behind > 30:
+            stale_warning = f" · ⚠️ 数据已滞后 {days_behind} 天，接口可能已失效"
         st.caption(f"数据源：东方财富 stock_hsgt_hist_em ({len(nb_clean)} 条有效数据) · 单位：亿元"
-                   f" · 最新数据：{nb_clean.iloc[-1, 0].strftime('%Y-%m-%d')}")
+                   f" · 最新数据：{latest_nb_date.strftime('%Y-%m-%d')}{stale_warning}")
     except Exception as e:
         st.warning(f"北上资金历史数据暂不可用: {e}")
 
@@ -1049,7 +1066,18 @@ with tab6:
         pe_df = fetch_index_pe("沪深300")
         pe_df["日期"] = pd.to_datetime(pe_df["日期"]); pe_df = pe_df.sort_values("日期")
         recent_pe = pe_df.tail(250)
-        pe_pct = float(recent_pe.iloc[-1]["动态市盈率分位"])
+        # 兼容不同版本的列名
+        pe_pct_col = next((c for c in recent_pe.columns if "分位" in str(c) and "市盈率" in str(c)), None)
+        if pe_pct_col is None:
+            pe_pct_col = next((c for c in recent_pe.columns if "分位" in str(c)), None)
+        if pe_pct_col is not None:
+            pe_pct = float(recent_pe.iloc[-1][pe_pct_col])
+        else:
+            pe_val_col = next((c for c in recent_pe.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
+            if pe_val_col is None:
+                pe_val_col = recent_pe.select_dtypes(include=[np.number]).columns[0]
+            cur_pe_val = float(recent_pe.iloc[-1][pe_val_col])
+            pe_pct = float((recent_pe[pe_val_col] <= cur_pe_val).sum() / len(recent_pe) * 100)
         pe_score = pe_pct  # 0 (fear/cheap) to 100 (greed/expensive)
         score_parts["PE 分位"] = pe_score
         if pe_score < 25: fgi_signals.append(("估值", "green", "PE 历史低位，市场恐惧"))
@@ -1100,7 +1128,12 @@ with tab6:
         nb_score = 50 + (nb_net / 100) * 0.5
         nb_score = min(100, max(0, nb_score))
         score_parts["北上资金"] = nb_score
-        if nb_net > 50: fgi_signals.append(("北上资金", "green", f"近20日净流入 {nb_net:.1f} 亿"))
+        # 检查数据时效性
+        nb_latest = nb_clean.iloc[-1, 0]
+        nb_days_behind = (datetime.now() - nb_latest).days
+        if nb_days_behind > 90:
+            fgi_signals.append(("北上资金", "yellow", f"近20日净流出 {abs(nb_net):.1f} 亿（数据滞后{nb_days_behind}天，仅供参考）"))
+        elif nb_net > 50: fgi_signals.append(("北上资金", "green", f"近20日净流入 {nb_net:.1f} 亿"))
         elif nb_net < -50: fgi_signals.append(("北上资金", "red", f"近20日净流出 {abs(nb_net):.1f} 亿"))
         else: fgi_signals.append(("北上资金", "yellow", f"近20日 {nb_net:+.1f} 亿"))
     except Exception as e:
@@ -1190,7 +1223,12 @@ with tab7:
             div_df.columns = [str(c) for c in div_df.columns]
             # Try to get date and dividend columns
             date_col = [c for c in div_df.columns if '日' in c or 'date' in str(c).lower()]
-            amount_col = [c for c in div_df.columns if '派' in str(c) or '息' in str(c) or '金' in str(c) or 'amount' in str(c).lower()]
+            # 优先匹配"每股派现"列，避免匹配到"派现总额"等错误列
+            amount_col = [c for c in div_df.columns if '每股派现' in str(c) or '每股派息' in str(c)]
+            if not amount_col:
+                amount_col = [c for c in div_df.columns if ('派' in str(c) or '息' in str(c)) and '总额' not in str(c) and '总' not in str(c)]
+            if not amount_col:
+                amount_col = [c for c in div_df.columns if 'amount' in str(c).lower()]
 
             if date_col and amount_col:
                 dc = date_col[0]; ac = amount_col[0]
@@ -1198,7 +1236,9 @@ with tab7:
                 div_display.columns = ['除权日期', '每股派息']
                 div_display['除权日期'] = pd.to_datetime(div_display['除权日期'])
                 div_display = div_display[div_display['除权日期'] >= pd.Timestamp(div_start)]
-                div_display['每股派息'] = div_display['每股派息'].astype(float)
+                div_display['每股派息'] = pd.to_numeric(div_display['每股派息'], errors='coerce')
+                div_display = div_display.dropna(subset=['每股派息'])
+                div_display = div_display[div_display['每股派息'] > 0]  # 排除0值和负值
                 div_display = div_display.sort_values('除权日期', ascending=False)
 
                 if len(div_display) > 0:
