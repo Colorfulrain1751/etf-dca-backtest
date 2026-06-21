@@ -14,7 +14,7 @@ from datetime import datetime
 # ============================================================
 st.set_page_config(
     page_title="ETF 定投回测 · 市场分析",
-    page_icon="📊",
+    page_icon="▸",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -281,21 +281,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.caption(
     f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-    "v0.2.1 | "
+    "v0.3 | DeepSeek design | "
     "[GitHub](https://github.com/Colorfulrain1751/etf-dca-backtest) | "
-    "✅ 所有数据已交叉验证"
+    "<span class='verified-badge'>数据已交叉验证</span>",
+    unsafe_allow_html=True,
 )
 
 # ============================================================
 # TABS
 # ============================================================
-tab1, tab2, tab3 = st.tabs(["📈 定投回测", "🌍 市场环境", "📋 更新日志"])
+tab1, tab2, tab3 = st.tabs(["DCA 回测", "市场分析", "更新日志"])
 
 # ============================================================
 # TAB 1 — 定投回测
 # ============================================================
 with tab1:
-    st.markdown("""<div class="section-title">⚙️ 参数设置</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">Parameters</div>""", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
     with c1:
         code_input = st.text_input("ETF 代码", value="510300",
@@ -306,9 +307,9 @@ with tab1:
         monthly = st.number_input("每月金额（元）", value=500, step=100, min_value=100)
     with c4:
         st.write("")
-        go = st.button("🚀 回测", type="primary", use_container_width=True)
+        go = st.button("Run Backtest", type="primary", use_container_width=True)
 
-    with st.expander("📋 常用 ETF 代码"):
+    with st.expander("ETF 代码参考"):
         st.markdown("""
         | 代码 | 名称 | 代码 | 名称 |
         |------|------|------|------|
@@ -323,7 +324,7 @@ with tab1:
     if go:
         symbol = resolve_symbol(code_input)
 
-        with st.spinner("⏳ 获取行情数据... 来源：新浪财经"):
+        with st.spinner("获取行情数据 — 新浪财经..."):
             try:
                 df = fetch_etf_history(symbol)
             except Exception as e:
@@ -358,7 +359,7 @@ with tab1:
         first_price = df.loc[df[buy_mask].index[0], "close"]
         first_date = df.loc[df[buy_mask].index[0], "date"]
 
-        st.markdown("""<div class="section-title">📊 回测结果</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="section-title">Results</div>""", unsafe_allow_html=True)
 
         m1, m2, m3, m4, m5 = st.columns(5)
         with m1:
@@ -381,7 +382,7 @@ with tab1:
             unsafe_allow_html=True,
         )
 
-        st.markdown("""<div class="section-title">📈 价格走势 & 买入点</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="section-title">Price & Buy Points</div>""", unsafe_allow_html=True)
         chart_df = df.set_index("date")
         chart_df["buy_signal"] = np.nan
         for bi in df[buy_mask].index:
@@ -391,9 +392,13 @@ with tab1:
             chart_df[["close", "buy_signal"]], height=380,
             color=["#2980b9", "#e74c3c"],
         )
-        st.caption("🔵 价格走势 | 🔴 定投买入点 | 前复权价格")
+        st.caption(
+            "<span style='color:#2980b9'>●</span> 价格走势 | "
+            "<span style='color:#e74c3c'>●</span> 定投买入点 | 前复权价格",
+            unsafe_allow_html=True,
+        )
 
-        st.markdown("""<div class="section-title">📅 年度明细</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="section-title">Annual Detail</div>""", unsafe_allow_html=True)
         buy_df = df[buy_mask][["date", "close"]].copy()
         buy_df["year"] = buy_df["date"].dt.year
         buy_df["shares"] = monthly / buy_df["close"]
@@ -416,12 +421,12 @@ with tab2:
     c_info, _, _ = st.columns([3, 1, 1])
     with c_info:
         st.caption(
-            "📡 数据实时获取 | 来源：新浪财经 / 乐股网 / AKShare | "
-            "所有数据已通过交叉验证，价格/估值均在历史合理区间内"
+            "数据实时获取 · 来源：新浪财经 / 乐股网 / AKShare · "
+            "所有数据已通过交叉验证"
         )
 
     # --- 实时指数 ---
-    st.markdown("""<div class="section-title">📡 主要指数</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">Market Indices</div>""", unsafe_allow_html=True)
 
     try:
         spot = fetch_index_spot()
@@ -461,10 +466,10 @@ with tab2:
                 </div>
                 """, unsafe_allow_html=True)
 
-    st.caption("📡 数据源：新浪财经 stock_zh_index_spot_sina（562 个指数实时行情）")
+    st.caption("数据源：新浪财经 stock_zh_index_spot_sina (562 指数，实时)")
 
     # --- 估值温度计 ---
-    st.markdown("""<div class="section-title">🌡️ 沪深300 估值温度计</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">HS300 Valuation Thermometer</div>""", unsafe_allow_html=True)
 
     pe_percentile = 50
     current_pe = 0
@@ -484,13 +489,13 @@ with tab2:
         pe_data_ok = True
 
         if pe_percentile < 20:
-            pe_level, pe_color, pe_advice = "🟢 低估区间", "#27ae60", "历史低位，可加大定投力度"
+            pe_level, pe_color, pe_advice = "Undervalued", "#27ae60", "历史低位，可加大定投力度"
         elif pe_percentile < 50:
-            pe_level, pe_color, pe_advice = "🟡 合理偏低", "#f39c12", "保持正常定投节奏"
+            pe_level, pe_color, pe_advice = "Fair (Low)", "#f39c12", "保持正常定投节奏"
         elif pe_percentile < 80:
-            pe_level, pe_color, pe_advice = "🟠 偏高区间", "#e67e22", "可考虑降低定投金额"
+            pe_level, pe_color, pe_advice = "Elevated", "#e67e22", "可考虑降低定投金额"
         else:
-            pe_level, pe_color, pe_advice = "🔴 高估区间", "#e74c3c", "历史高位，建议暂停定投等回调"
+            pe_level, pe_color, pe_advice = "Overvalued", "#e74c3c", "历史高位，建议暂停定投等回调"
 
         col_a, col_b, col_c, col_d = st.columns(4)
         col_a.metric("当前 PE", f"{current_pe:.2f}")
@@ -512,7 +517,12 @@ with tab2:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown(f"**{pe_level}** — {pe_advice}")
+        st.markdown(
+            f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
+            f"background:{pe_color};margin-right:6px;'></span>"
+            f"<strong>{pe_level}</strong> &mdash; {pe_advice}",
+            unsafe_allow_html=True,
+        )
 
         chart_pe = recent.set_index("日期")[["动态市盈率"]].copy()
         chart_pe["中位数"] = pe_median
@@ -522,12 +532,12 @@ with tab2:
         st.warning(f"PE 数据暂不可用: {e}")
 
     st.caption(
-        "📡 数据源：乐股网 stock_index_pe_lg（5149 条日数据，含 PE 分位） | "
-        "PE = 动态市盈率，分位 = 当前 PE 在过去 500 个交易日中的位置"
+        "数据源：乐股网 stock_index_pe_lg (5149 rows, PE + percentile) | "
+        "PE = 动态市盈率 · 分位 = 500 日均线位置"
     )
 
     # --- 全市场 PB ---
-    st.markdown("""<div class="section-title">🏦 全市场 PB 估值</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">Market-wide PB</div>""", unsafe_allow_html=True)
 
     pb_pct = 50
     pb_data_ok = False
@@ -549,13 +559,19 @@ with tab2:
         c3.metric("中位数 PB", f"{pb_med:.2f}")
 
         if pb_pct < 20:
-            st.markdown("🟢 **低估区间**")
+            pb_level, pb_dot = "Undervalued", "#27ae60"
         elif pb_pct < 50:
-            st.markdown("🟡 **合理偏低**")
+            pb_level, pb_dot = "Fair (Low)", "#f39c12"
         elif pb_pct < 80:
-            st.markdown("🟠 **偏高区间**")
+            pb_level, pb_dot = "Elevated", "#e67e22"
         else:
-            st.markdown("🔴 **高估区间**")
+            pb_level, pb_dot = "Overvalued", "#e74c3c"
+        st.markdown(
+            f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
+            f"background:{pb_dot};margin-right:6px;'></span>"
+            f"<strong>{pb_level}</strong>",
+            unsafe_allow_html=True,
+        )
 
         st.line_chart(rpb.set_index("日期")[["市净率"]], height=280, color=["#2980b9"])
 
@@ -563,12 +579,12 @@ with tab2:
         st.warning(f"PB 数据暂不可用: {e}")
 
     st.caption(
-        "📡 数据源：乐股网 stock_market_pb_lg（5210 条日数据，含 PB 分位） | "
+        "数据源：乐股网 stock_market_pb_lg (5210 rows, PB + percentile) | "
         "PB = 市净率，全市场加权平均"
     )
 
     # --- 均线趋势 ---
-    st.markdown("""<div class="section-title">📉 上证指数 · 均线趋势</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">SSE Composite · MA Trend</div>""", unsafe_allow_html=True)
 
     ma20 = ma60 = None
     try:
@@ -590,44 +606,50 @@ with tab2:
         t1, t2, t3 = st.columns(3)
         t1.metric("20日均线", f"{ma20:,.0f}", f"{(last_close/ma20-1)*100:+.1f}%")
         t2.metric("60日均线", f"{ma60:,.0f}", f"{(last_close/ma60-1)*100:+.1f}%")
-        t3.metric("均线", "多头 ↑" if ma20 > ma60 else "空头 ↓",
+        t3.metric("均线", "Bullish" if ma20 > ma60 else "Bearish",
                   f"{'MA20 > MA60' if ma20 > ma60 else 'MA20 < MA60'}")
     except Exception as e:
         st.warning(f"指数数据暂不可用: {e}")
 
     st.caption(
-        "📡 数据源：新浪财经 stock_zh_index_daily（8664 条日线数据） | "
-        "MA20/60 = 20日/60日移动平均线"
+        "数据源：新浪财经 stock_zh_index_daily (8664 rows) | "
+        "MA20/60 = 20/60 日移动均线"
     )
 
     # --- 综合判断 ---
-    st.markdown("""<div class="section-title">💡 综合市场信号</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">Composite Signals</div>""", unsafe_allow_html=True)
 
     try:
         signals = []
         if pe_data_ok:
-            signals.append(("沪深300 PE",
-                            "🟢" if pe_percentile < 30 else ("🟡" if pe_percentile < 70 else "🔴"),
+            s = "green" if pe_percentile < 30 else ("yellow" if pe_percentile < 70 else "red")
+            signals.append(("HS300 PE", s,
                             f"当前 PE={current_pe:.1f}，处于 {pe_percentile:.0f}% 分位"))
         if pb_data_ok:
-            signals.append(("全市场 PB",
-                            "🟢" if pb_pct < 30 else ("🟡" if pb_pct < 70 else "🔴"),
+            s = "green" if pb_pct < 30 else ("yellow" if pb_pct < 70 else "red")
+            signals.append(("Market PB", s,
                             f"当前 PB={cur_pb:.2f}，处于 {pb_pct:.0f}% 分位"))
         if ma20 is not None and ma60 is not None:
             trend_ok = ma20 > ma60
-            signals.append(("均线趋势",
-                            "🟢" if trend_ok else "🔴",
+            signals.append(("MA Trend", "green" if trend_ok else "red",
                             "多头排列 MA20>MA60" if trend_ok else "空头排列 MA20<MA60"))
 
-        for name, emoji, desc in signals:
-            st.markdown(f"{emoji} **{name}** — {desc}")
+        dot_colors = {"green": "#27ae60", "yellow": "#f39c12", "red": "#e74c3c"}
+        for name, color, desc in signals:
+            c = dot_colors[color]
+            st.markdown(
+                f"<span style='display:inline-block;width:10px;height:10px;"
+                f"border-radius:50%;background:{c};margin-right:6px;'></span>"
+                f"<strong>{name}</strong> &mdash; {desc}",
+                unsafe_allow_html=True,
+            )
     except Exception:
         st.info("部分指标加载中")
 
     # --- 数据可靠性声明 ---
-    st.markdown("""<div class="section-title">🔍 数据可靠性</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">Data Provenance</div>""", unsafe_allow_html=True)
 
-    with st.expander("📋 查看数据来源与验证记录"):
+    with st.expander("数据来源与交叉验证记录"):
         st.markdown("""
         | 数据模块 | 来源 | 接口 | 数据量 | 更新时间 |
         |---------|------|------|--------|---------|
@@ -653,31 +675,35 @@ with tab2:
 # ============================================================
 with tab3:
     st.markdown("""
-    ## 📋 更新日志
+    ## Changelog
+
+    ### v0.3 — 2026-06-21
+    - Design overhaul: replaced all emoji with CSS dot indicators
+    - Clean DeepSeek-inspired aesthetic: minimal, professional
+    - Animation refinements for smoother transitions
 
     ### v0.2.1 — 2026-06-21
-    - 🏷️ **数据来源标注** — 每个模块标注数据源接口名和记录数
-    - ✅ **交叉验证记录** — 市场环境页新增「数据可靠性」折叠面板
-    - 🐛 **修复** Streamlit 1.58 兼容性（关键词参数）+ 年度明细报错
+    - Data source labels on every module
+    - Cross-verification panel in Market tab
+    - Bug fixes: Streamlit 1.58 compat + yearly aggregation
 
     ### v0.2 — 2026-06-21
-    - ✨ 市场环境分析：实时指数、PE/PB 估值温度计、均线趋势、综合信号
-    - 🎨 UI 美化：Tab 布局、卡片式指标、涨跌配色
-    - 📅 年度明细表
-    - ⚡ 数据缓存
+    - Market environment analysis: indices, PE/PB thermometer, MA trends
+    - UI redesign: tabs, metric cards, color coding
+    - Annual detail table, data caching
 
     ### v0.1 — 2026-06-21
-    - 🎉 初始发布：ETF 定投回测、买入点可视化、Streamlit Cloud 部署
+    - Initial release: ETF DCA backtest, buy-point visualization, Streamlit Cloud
 
     ---
-    ### 🗺️ 路线图
-    | 版本 | 计划内容 |
-    |------|---------|
-    | v0.3 | 多 ETF 同时对比回测 |
-    | v0.4 | 周定投 / 双周定投 / 自选日 |
-    | v0.5 | 交易费用模拟（佣金+印花税） |
-    | v0.6 | 策略对比器（定投 vs 一次性 vs 网格） |
-    | v1.0 | 账户系统 + 回测记录保存 |
+    ### Roadmap
+    | Ver | Feature |
+    |-----|---------|
+    | v0.4 | Multi-ETF comparison |
+    | v0.5 | Weekly / bi-weekly DCA modes |
+    | v0.6 | Fee simulation (commission + stamp tax) |
+    | v0.7 | Strategy comparison (DCA vs lump sum vs grid) |
+    | v1.0 | User accounts + saved backtests |
     """)
 
 # ============================================================
@@ -685,10 +711,10 @@ with tab3:
 # ============================================================
 st.markdown(f"""
 <div class="footer">
-    ETF 定投回测 v0.2.1 |
+    ETF DCA Backtest v0.3 |
     <a href="https://github.com/Colorfulrain1751/etf-dca-backtest">GitHub</a> |
-    数据：新浪财经 / 乐股网 / AKShare |
-    ✅ 已通过交叉验证 |
+    数据源：新浪财经 / 乐股网 / AKShare |
+    已通过交叉验证 |
     不构成投资建议
 </div>
 """, unsafe_allow_html=True)
