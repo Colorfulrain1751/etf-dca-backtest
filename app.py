@@ -104,12 +104,12 @@ with tab1:
     st.markdown("""<div class="section-title">⚙️ 参数设置</div>""", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
     with c1:
-        code_input = st.text_input("ETF 代码", "510300",
+        code_input = st.text_input("ETF 代码", value="510300",
                                    help="沪市: 51/56/58 开头 | 深市: 159/16 开头")
     with c2:
-        start_date = st.date_input("开始定投", datetime(2020, 1, 1))
+        start_date = st.date_input("开始定投", value=datetime(2020, 1, 1))
     with c3:
-        monthly = st.number_input("每月金额（元）", 500, step=100, min_value=100)
+        monthly = st.number_input("每月金额（元）", value=500, step=100, min_value=100)
     with c4:
         st.write("")
         go = st.button("🚀 回测", type="primary", use_container_width=True)
