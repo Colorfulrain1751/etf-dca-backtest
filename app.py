@@ -1002,43 +1002,25 @@ with tab5:
         st.warning(f"北上资金历史数据暂不可用: {e}")
 
     # --- Sector Flow ---
-    st.markdown("""<div class="section-title">行业板块涨跌</div>""", unsafe_allow_html=True)
-
-    # Sina sector code -> Chinese name mapping
-    SECTOR_NAMES = {
-        'new_blhy': '玻璃行业', 'new_cbzz': '船舶制造', 'new_cmyl': '传媒娱乐',
-        'new_dlhy': '电力行业', 'new_dqhy': '电器行业', 'new_dzqj': '电子器件',
-        'new_dzxx': '电子信息', 'new_fdc': '房地产', 'new_fdsb': '发电设备',
-        'new_fjzz': '飞机制造', 'new_fzhy': '纺织行业', 'new_fzjx': '纺织机械',
-        'new_fzxl': '服装鞋类', 'new_glql': '公路桥梁', 'new_gsgq': '钢铁行业',
-        'new_gthy': '供水供气', 'new_hbhy': '环保行业', 'new_hghy': '化工行业',
-        'new_hqhy': '化纤行业', 'new_jdhy': '家电行业', 'new_jdly': '酒店旅游',
-        'new_jjhy': '家具行业', 'new_jrhy': '金融行业', 'new_jtys': '交通运输',
-        'new_jxhy': '机械行业', 'new_jzjc': '建筑建材', 'new_kfq': '开发区',
-        'new_ljhy': '酿酒行业', 'new_mtc': '摩托车', 'new_mthy': '煤炭行业',
-        'new_nlmy': '农林牧渔', 'new_nyhf': '农药化肥', 'new_qczz': '汽车制造',
-        'new_qtxy': '其它行业', 'new_slzp': '塑料制品', 'new_snhy': '水泥行业',
-        'new_sphy': '食品行业', 'new_stock': '综合行业', 'new_swzz': '生物制药',
-        'new_sybh': '商业百货', 'new_syhy': '石油行业', 'new_tchy': '陶瓷行业',
-        'new_wzwm': '物资外贸', 'new_ylqx': '医疗器械', 'new_yqyb': '仪器仪表',
-        'new_ysbz': '印刷包装', 'new_ysjs': '有色金属', 'new_zhhy': '综合行业',
-        'new_zzhy': '造纸行业',
-    }
+    st.markdown("""<div class="section-title">行业板块涨跌（日）</div>""", unsafe_allow_html=True)
 
     try:
         sector = fetch_sector_spot()
+        # Columns: [0]label [1]名称 [2]公司数 [3]平均价格 [4]涨跌额 [5]涨跌幅(%) [6]成交量 ...
+        # Column 1 = Chinese name, Column 5 = daily change %
         if len(sector) > 0:
-            # Sort by absolute change, show top 25
             sector_display = sector.copy()
-            sector_display['abs_chg'] = abs(sector_display.iloc[:,3].astype(float))
-            sector_display = sector_display.sort_values('abs_chg', ascending=False).head(25)
+            sector_display['chg'] = sector_display.iloc[:, 5].astype(float)
+            # Sort by change (best to worst)
+            sector_display = sector_display.sort_values('chg', ascending=False)
+
+            st.caption(f"共 {len(sector_display)} 个行业，已按日涨跌幅排序")
 
             cols = st.columns(5)
             for i, (_, row) in enumerate(sector_display.iterrows()):
                 ci = i % 5
-                code = str(row.iloc[0])
-                name = SECTOR_NAMES.get(code, code)
-                chg = float(row.iloc[3])
+                name = str(row.iloc[1])  # Column 1 = Chinese name
+                chg = float(row.iloc[5])  # Column 5 = daily change %
                 color = "#059669" if chg >= 0 else "#dc2626"
                 with cols[ci]:
                     st.markdown(f"""
@@ -1051,7 +1033,7 @@ with tab5:
     except Exception as e:
         st.warning(f"行业板块数据暂不可用: {e}")
 
-    st.caption("数据源：新浪财经 stock_sector_spot (49 个行业)")
+    st.caption("数据源：新浪财经 stock_sector_spot (49 个行业) · 单日涨跌幅")
 
 # ============================================================
 # TAB 6 — 恐贪指数
