@@ -1002,34 +1002,49 @@ with tab5:
         st.warning(f"北上资金历史数据暂不可用: {e}")
 
     # --- Sector Flow ---
-    st.markdown("""<div class="section-title">行业板块资金流向</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">行业板块涨跌</div>""", unsafe_allow_html=True)
+
+    # Sina sector code -> Chinese name mapping
+    SECTOR_NAMES = {
+        'new_blhy': '玻璃行业', 'new_cbzz': '船舶制造', 'new_cmyl': '传媒娱乐',
+        'new_dlhy': '电力行业', 'new_dqhy': '电器行业', 'new_dzqj': '电子器件',
+        'new_dzxx': '电子信息', 'new_fdc': '房地产', 'new_fdsb': '发电设备',
+        'new_fjzz': '飞机制造', 'new_fzhy': '纺织行业', 'new_fzjx': '纺织机械',
+        'new_fzxl': '服装鞋类', 'new_glql': '公路桥梁', 'new_gsgq': '钢铁行业',
+        'new_gthy': '供水供气', 'new_hbhy': '环保行业', 'new_hghy': '化工行业',
+        'new_hqhy': '化纤行业', 'new_jdhy': '家电行业', 'new_jdly': '酒店旅游',
+        'new_jjhy': '家具行业', 'new_jrhy': '金融行业', 'new_jtys': '交通运输',
+        'new_jxhy': '机械行业', 'new_jzjc': '建筑建材', 'new_kfq': '开发区',
+        'new_ljhy': '酿酒行业', 'new_mtc': '摩托车', 'new_mthy': '煤炭行业',
+        'new_nlmy': '农林牧渔', 'new_nyhf': '农药化肥', 'new_qczz': '汽车制造',
+        'new_qtxy': '其它行业', 'new_slzp': '塑料制品', 'new_snhy': '水泥行业',
+        'new_sphy': '食品行业', 'new_stock': '综合行业', 'new_swzz': '生物制药',
+        'new_sybh': '商业百货', 'new_syhy': '石油行业', 'new_tchy': '陶瓷行业',
+        'new_wzwm': '物资外贸', 'new_ylqx': '医疗器械', 'new_yqyb': '仪器仪表',
+        'new_ysbz': '印刷包装', 'new_ysjs': '有色金属', 'new_zhhy': '综合行业',
+        'new_zzhy': '造纸行业',
+    }
 
     try:
         sector = fetch_sector_spot()
         if len(sector) > 0:
-            # Limit to top 15 by change magnitude
-            sector_display = sector.head(15).copy()
-            display_cols = ['label', '涨跌幅']
-            # Try to find the right columns
-            for c in sector.columns:
-                if '涨跌' in str(c) and '幅' in str(c):
-                    display_cols[1] = c
-                    break
+            # Sort by absolute change, show top 25
+            sector_display = sector.copy()
+            sector_display['abs_chg'] = abs(sector_display.iloc[:,3].astype(float))
+            sector_display = sector_display.sort_values('abs_chg', ascending=False).head(25)
 
             cols = st.columns(5)
             for i, (_, row) in enumerate(sector_display.iterrows()):
                 ci = i % 5
-                name = str(row.iloc[0])
-                try:
-                    chg = float(row.iloc[3]) if len(row) > 3 else float(row.iloc[1])
-                except Exception:
-                    chg = 0
+                code = str(row.iloc[0])
+                name = SECTOR_NAMES.get(code, code)
+                chg = float(row.iloc[3])
                 color = "#059669" if chg >= 0 else "#dc2626"
                 with cols[ci]:
                     st.markdown(f"""
                     <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;
                                 border:1px solid #e5e7eb;margin-bottom:6px;">
-                        <div style="font-size:0.8rem;color:#6b7280;">{name}</div>
+                        <div style="font-size:0.78rem;color:#6b7280;">{name}</div>
                         <div style="font-weight:700;color:{color};">{chg:+.2f}%</div>
                     </div>
                     """, unsafe_allow_html=True)
