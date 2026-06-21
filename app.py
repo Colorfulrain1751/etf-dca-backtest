@@ -977,17 +977,19 @@ with tab5:
     # Northbound trend chart
     try:
         nb_hist = fetch_northbound_hist()
-        # 13 columns: 日期/当日成交净买额/买入成交额/卖出成交额/历史累计净买额/
-        #             当日资金流入/当日余额/持股市值/领涨股/领涨股涨跌幅/
-        #             沪深300/沪深300涨跌幅/领涨股代码
-        nb_hist.columns = list(range(len(nb_hist.columns)))  # reset to int
-        nb_hist = nb_hist.rename(columns={0: 'date', 1: 'net_buy', 10: 'hs300'})
-        nb_hist['date'] = pd.to_datetime(nb_hist['date'])
-        nb_hist = nb_hist.sort_values('date').tail(120)
-        nb_hist['net_buy'] = nb_hist['net_buy'].astype(float)
+        nb_hist.iloc[:, 0] = pd.to_datetime(nb_hist.iloc[:, 0])
+        nb_hist = nb_hist.sort_values(nb_hist.columns[0])
+        # Drop NaN (recent days may not have data yet)
+        net_col = nb_hist.columns[1]
+        nb_clean = nb_hist.dropna(subset=[net_col]).copy()
+        nb_clean['net'] = nb_clean[net_col].astype(float)
+        # Take last 250 valid trading days
+        nb_chart = nb_clean.tail(250).set_index(nb_clean.columns[0])[['net']]
+        nb_chart.columns = ['当日净买额(亿)']
 
-        st.line_chart(nb_hist.set_index('date')[['net_buy']], height=250, color=["#1a56db"])
-        st.caption("数据源：东方财富 stock_hsgt_hist_em (2692 条) · 近 120 个交易日 · 单位：亿元")
+        st.line_chart(nb_chart, height=250, color=["#1a56db"])
+        st.caption(f"数据源：东方财富 stock_hsgt_hist_em ({len(nb_clean)} 条有效数据) · 单位：亿元"
+                   f" · 最新数据：{nb_clean.iloc[-1, 0].strftime('%Y-%m-%d')}")
     except Exception as e:
         st.warning(f"北上资金历史数据暂不可用: {e}")
 
