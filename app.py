@@ -189,10 +189,14 @@ st.markdown("""
     .stAlert { border-radius: 10px !important; font-weight: 500; }
 
     html { scroll-behavior: smooth; }
-    .hero { text-align:center; padding:80px 20px 60px 20px; animation:fadeIn 0.8s ease-out; background:linear-gradient(180deg,#1a56db 0%,#3b82f6 30%,#93c5fd 70%,#ffffff 100%); }
-    .hero h1 { font-size:2.8rem; font-weight:800; color:#fff; letter-spacing:-0.5px; margin-bottom:12px; text-shadow:0 2px 8px rgba(0,0,0,0.1); }
-    .hero .gradient { background:linear-gradient(135deg,#fbbf24,#f59e0b,#fbbf24); background-size:200% 200%; animation:gradientFlow 4s ease infinite; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .hero .tagline { font-size:1.1rem; color:rgba(255,255,255,0.9); max-width:600px; margin:16px auto 8px auto; line-height:1.7; }
+    body, .main, [data-testid="stAppViewContainer"] {
+        background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 25%, #f8fafc 50%, #ffffff 75%) !important;
+        background-attachment: fixed !important;
+    }
+    .hero { text-align:center; padding:120px 20px 80px 20px; animation:fadeIn 0.8s ease-out; }
+    .hero h1 { font-size:2.8rem; font-weight:800; color:#1e3a5f; letter-spacing:-0.5px; margin-bottom:12px; }
+    .hero .gradient { background:linear-gradient(135deg,#1e40af,#3b82f6,#6366f1); background-size:200% 200%; animation:gradientFlow 6s ease infinite; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .hero .tagline { font-size:1.15rem; color:#475569; max-width:600px; margin:20px auto 8px auto; line-height:1.8; }
 </style>
 """, unsafe_allow_html=True)
 
