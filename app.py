@@ -954,30 +954,40 @@ with tab5:
 
     try:
         nb_flow = fetch_northbound_summary()
-        if len(nb_flow) > 0:
-            # Parse the summary table
-            nb_cols = st.columns(4)
-            labels = ["沪股通", "深股通", "北上合计", "南下合计"]
-            for i, (col, label) in enumerate(zip(nb_cols, labels)):
-                if i < len(nb_flow):
-                    row = nb_flow.iloc[i]
-                    with col:
-                        net = float(row.iloc[3]) if len(row) > 3 else 0
-                        st.metric(label, f"{net/1e8:.1f} 亿",
-                                  delta=f"{net/1e8:+.1f} 亿" if net != 0 else None)
+        # Summary: 4 rows — 沪股通(北), 沪股通(南), 深股通(北), 深股通(南)
+        # Column 0=日期, 3=资金方向, 9=资金净额(亿)
+        if len(nb_flow) >= 4:
+            sh_n = float(nb_flow.iloc[0, 9])  # 沪股通 北上
+            sz_n = float(nb_flow.iloc[2, 9])  # 深股通 北上
+            sh_s = float(nb_flow.iloc[1, 9])  # 沪股通 南下
+            sz_s = float(nb_flow.iloc[3, 9])  # 深股通 南下
+            n_total = sh_n + sz_n
+            s_total = sh_s + sz_s
+
+            n1, n2, n3, n4 = st.columns(4)
+            n1.metric("沪股通(北上)", f"{sh_n:.1f} 亿", delta=f"{sh_n:+.1f} 亿")
+            n2.metric("深股通(北上)", f"{sz_n:.1f} 亿", delta=f"{sz_n:+.1f} 亿")
+            n3.metric("北上合计", f"{n_total:.1f} 亿", delta=f"{n_total:+.1f} 亿")
+            n4.metric("南下合计", f"{s_total:.1f} 亿", delta=f"{s_total:+.1f} 亿")
+        else:
+            st.info("北上资金数据格式异常，请稍后重试")
     except Exception as e:
         st.warning(f"北上资金数据暂不可用: {e}")
 
     # Northbound trend chart
     try:
         nb_hist = fetch_northbound_hist()
-        nb_hist.columns = ['日期', '当日成交净买额', '买入成交额', '卖出成交额', '沪深300', '上证指数', '深证成指']
-        nb_hist['日期'] = pd.to_datetime(nb_hist['日期'])
-        nb_hist = nb_hist.sort_values('日期').tail(120)
-        nb_hist['累计净买额'] = nb_hist['当日成交净买额'].astype(float).cumsum()
+        # 13 columns: 日期/当日成交净买额/买入成交额/卖出成交额/历史累计净买额/
+        #             当日资金流入/当日余额/持股市值/领涨股/领涨股涨跌幅/
+        #             沪深300/沪深300涨跌幅/领涨股代码
+        nb_hist.columns = list(range(len(nb_hist.columns)))  # reset to int
+        nb_hist = nb_hist.rename(columns={0: 'date', 1: 'net_buy', 10: 'hs300'})
+        nb_hist['date'] = pd.to_datetime(nb_hist['date'])
+        nb_hist = nb_hist.sort_values('date').tail(120)
+        nb_hist['net_buy'] = nb_hist['net_buy'].astype(float)
 
-        st.line_chart(nb_hist.set_index('日期')[['当日成交净买额']], height=250, color=["#1a56db"])
-        st.caption("数据源：东方财富 stock_hsgt_hist_em (2692 条历史数据) · 近 120 个交易日")
+        st.line_chart(nb_hist.set_index('date')[['net_buy']], height=250, color=["#1a56db"])
+        st.caption("数据源：东方财富 stock_hsgt_hist_em (2692 条) · 近 120 个交易日 · 单位：亿元")
     except Exception as e:
         st.warning(f"北上资金历史数据暂不可用: {e}")
 
@@ -1075,16 +1085,16 @@ with tab6:
     # 4. Northbound score
     try:
         nb = fetch_northbound_hist()
-        nb.columns = ['日期','当日成交净买额','买入成交额','卖出成交额','沪深300','上证指数','深证成指']
-        nb['date'] = pd.to_datetime(nb['日期']); nb = nb.sort_values('date')
+        nb.iloc[:, 0] = pd.to_datetime(nb.iloc[:, 0])  # col 0 = date
+        nb = nb.sort_values(nb.columns[0])
         recent_nb = nb.tail(20)
-        nb_net = float(recent_nb['当日成交净买额'].sum())
-        nb_score = 50 + (nb_net / 1e10) * 5
+        nb_net = float(recent_nb.iloc[:, 1].sum())  # col 1 = net buy
+        nb_score = 50 + (nb_net / 100) * 0.5
         nb_score = min(100, max(0, nb_score))
         score_parts["北上资金"] = nb_score
-        if nb_net > 50: fgi_signals.append(("北上资金", "green", f"近20日净流入 {nb_net/1e8:.1f} 亿"))
-        elif nb_net < -50: fgi_signals.append(("北上资金", "red", f"近20日净流出 {abs(nb_net)/1e8:.1f} 亿"))
-        else: fgi_signals.append(("北上资金", "yellow", f"近20日 {nb_net/1e8:+.1f} 亿"))
+        if nb_net > 50: fgi_signals.append(("北上资金", "green", f"近20日净流入 {nb_net:.1f} 亿"))
+        elif nb_net < -50: fgi_signals.append(("北上资金", "red", f"近20日净流出 {abs(nb_net):.1f} 亿"))
+        else: fgi_signals.append(("北上资金", "yellow", f"近20日 {nb_net:+.1f} 亿"))
     except Exception as e:
         nb_score = 50
 
