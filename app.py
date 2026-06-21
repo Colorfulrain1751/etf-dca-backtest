@@ -208,7 +208,7 @@ with tab1:
         buy_df["shares"] = monthly / buy_df["close"]
         yearly = buy_df.groupby("year").agg(
             买入次数=("date", "count"),
-            投入=("shares", lambda x: (monthly * len(x)).sum()),
+            投入=("shares", lambda x: monthly * len(x)),
             均价=("close", "mean"),
             份额=("shares", "sum"),
         ).reset_index()
