@@ -139,7 +139,8 @@ st.markdown("""
 
 _, cta_btn, _ = st.columns([1, 1, 1])
 with cta_btn:
-    st.page_link("pages/1_Analysis.py", label="开始使用", use_container_width=True)
+    if st.button("开始使用", type="primary", use_container_width=True):
+        st.switch_page("pages/1_Analysis.py")
 
 # ============================================================
 # FEATURES
