@@ -193,8 +193,6 @@ st.markdown("""
     .hero h1 { font-size:2.8rem; font-weight:800; color:#111; letter-spacing:-0.5px; margin-bottom:12px; }
     .hero .gradient { background:linear-gradient(135deg,#1a56db,#7c3aed,#db2777); background-size:200% 200%; animation:gradientFlow 6s ease infinite; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
     .hero .tagline { font-size:1.1rem; color:#6b7280; max-width:600px; margin:16px auto 8px auto; line-height:1.7; }
-    .hero-down { text-align:center; margin:8px 0 32px 0; }
-    #tools { scroll-margin-top: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -248,17 +246,8 @@ st.markdown("""
         让每一次决策都有数据支撑。
     </p>
 </div>
-<div class="hero-down">
-    <a href="#tools" style="display:inline-block;background:#1a56db;color:#fff;
-        padding:12px 36px;border-radius:10px;font-size:1rem;font-weight:700;
-        text-decoration:none;transition:all 0.2s;
-        box-shadow:0 4px 16px rgba(26,86,219,0.25);">
-        开始使用 &#9660;
-    </a>
-</div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div id='tools'></div>", unsafe_allow_html=True)
 st.caption(
     f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
     "[GitHub](https://github.com/Colorfulrain1751/etf-dca-backtest) | "
