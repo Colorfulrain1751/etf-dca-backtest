@@ -148,7 +148,7 @@ f1, f2, f3 = st.columns(3)
 with f1:
     st.markdown("""
     <div class="feature-card">
-        <div class="feature-icon">📈</div>
+        <div class="feature-icon">▸</div>
         <h3>定投回测</h3>
         <p>
             输入 ETF 代码、起始日期和金额，立刻算出累计投入、当前市值和收益率。
@@ -160,7 +160,7 @@ with f1:
 with f2:
     st.markdown("""
     <div class="feature-card">
-        <div class="feature-icon">🌡️</div>
+        <div class="feature-icon">◉</div>
         <h3>估值温度计</h3>
         <p>
             实时追踪沪深300 PE/PB 历史分位，用颜色告诉你市场是贵还是便宜。
@@ -172,7 +172,7 @@ with f2:
 with f3:
     st.markdown("""
     <div class="feature-card">
-        <div class="feature-icon">🔬</div>
+        <div class="feature-icon">◎</div>
         <h3>个股技术分析</h3>
         <p>
             MA 均线、MACD、RSI、布林带 — 六大指标自动计算，
