@@ -20,36 +20,214 @@ st.set_page_config(
 )
 
 # ============================================================
-# CUSTOM CSS
+# CUSTOM CSS — premium animations & effects
 # ============================================================
 st.markdown("""
 <style>
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    @keyframes slideInLeft {
+        from { opacity: 0; transform: translateX(-20px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50%      { transform: scale(1.03); }
+    }
+    @keyframes shimmer {
+        0%   { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    @keyframes gradientShift {
+        0%   { background-position: 0% 50%; }
+        50%  { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    @keyframes countUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== BASE ===== */
+    .block-container { padding-top: 2rem; }
+    .main { scroll-behavior: smooth; }
+
+    /* ===== SECTION TITLES ===== */
     .section-title {
         font-size: 1.15rem; font-weight: 600;
-        border-left: 4px solid #2980b9;
-        padding-left: 12px; margin: 20px 0 10px 0;
+        padding-left: 14px; margin: 24px 0 12px 0;
+        border-left: 4px solid transparent;
+        border-image: linear-gradient(180deg, #2980b9, #6dd5fa) 1;
+        animation: slideInLeft 0.5s ease-out;
     }
+
+    /* ===== HERO HEADER ===== */
+    .hero-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 6s ease infinite;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* ===== INDEX CARDS ===== */
     .index-card {
-        background: #f8f9fa; border-radius: 12px; padding: 16px;
-        text-align: center; border: 1px solid #e9ecef;
+        background: rgba(255,255,255,0.9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 20px 16px;
+        text-align: center;
+        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeInUp 0.5s ease-out backwards;
     }
-    .index-name { font-size: 0.8rem; color: #6c757d; margin-bottom: 4px; }
-    .index-price { font-size: 1.5rem; font-weight: 700; }
+    .index-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.1);
+        border-color: rgba(41,128,185,0.2);
+    }
+    .index-card:nth-child(1) { animation-delay: 0.05s; }
+    .index-card:nth-child(2) { animation-delay: 0.10s; }
+    .index-card:nth-child(3) { animation-delay: 0.15s; }
+    .index-card:nth-child(4) { animation-delay: 0.20s; }
+    .index-card:nth-child(5) { animation-delay: 0.25s; }
+
+    .index-name { font-size: 0.8rem; color: #6c757d; margin-bottom: 6px;
+                  text-transform: uppercase; letter-spacing: 0.5px; }
+    .index-price { font-size: 1.6rem; font-weight: 700; margin: 4px 0;
+                   animation: countUp 0.6s ease-out; }
+
+    /* ===== METRIC CARDS ===== */
+    [data-testid="stMetric"] {
+        transition: all 0.3s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        transform: scale(1.03);
+    }
+    [data-testid="stMetricValue"] {
+        animation: countUp 0.6s ease-out;
+    }
+
+    /* ===== BUTTONS ===== */
+    .stButton > button {
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.3px !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 24px rgba(41,128,185,0.25) !important;
+    }
+    .stButton > button:active {
+        transform: translateY(0) scale(0.98) !important;
+    }
+
+    /* ===== TABS ===== */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    .stTabs [data-baseweb="tab"] {
+        transition: all 0.3s ease;
+        border-radius: 8px 8px 0 0;
+        padding: 10px 20px;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(41,128,185,0.05);
+    }
+
+    /* ===== EXPANDER ===== */
+    .streamlit-expanderHeader {
+        transition: all 0.3s ease;
+        border-radius: 10px !important;
+    }
+    .streamlit-expanderHeader:hover {
+        background: rgba(41,128,185,0.04) !important;
+    }
+
+    /* ===== EXPANDER CONTENT (data source panel) ===== */
+    [data-testid="stExpander"] {
+        transition: all 0.3s ease;
+    }
+
+    /* ===== TEMPERATURE BAR ===== */
+    .thermo-bar {
+        transition: left 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ===== LOADING SPINNER ===== */
+    .stSpinner > div {
+        border-top-color: #2980b9 !important;
+    }
+
+    /* ===== TAGS ===== */
     .source-tag {
-        display: inline-block; background: #e9ecef; color: #6c757d;
-        font-size: 0.65rem; padding: 2px 8px; border-radius: 4px;
+        display: inline-block; background: rgba(0,0,0,0.04); color: #6c757d;
+        font-size: 0.65rem; padding: 3px 10px; border-radius: 20px;
         margin-left: 8px; vertical-align: middle;
+        transition: all 0.2s ease;
+    }
+    .source-tag:hover {
+        background: rgba(41,128,185,0.1); color: #2980b9;
     }
     .verified-badge {
-        display: inline-block; background: #d4edda; color: #155724;
-        font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+        display: inline-block; background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        color: #155724; font-size: 0.7rem; padding: 3px 10px; border-radius: 20px;
         margin-left: 8px; vertical-align: middle;
+        animation: pulse 2s ease-in-out infinite;
     }
+
+    /* ===== FOOTER ===== */
     .footer {
         text-align: center; color: #adb5bd; font-size: 0.8rem;
-        margin-top: 48px; padding-top: 16px; border-top: 1px solid #e9ecef;
+        margin-top: 48px; padding-top: 20px;
+        border-top: 1px solid rgba(0,0,0,0.06);
+        animation: fadeIn 1s ease-out;
     }
-    .block-container { padding-top: 2rem; }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,0.1);
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0,0,0,0.2);
+    }
+
+    /* ===== DATA TABLE ===== */
+    [data-testid="stDataFrame"] {
+        animation: fadeIn 0.6s ease-out;
+        border-radius: 12px !important;
+        overflow: hidden;
+    }
+
+    /* ===== CHART CONTAINER ===== */
+    [data-testid="stArrowVegaLiteChart"] {
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    /* ===== SELECTION BOXES ===== */
+    .stTextInput > div > div, .stDateInput > div > div, .stNumberInput > div > div {
+        transition: all 0.3s ease;
+    }
+    .stTextInput > div > div:focus-within,
+    .stDateInput > div > div:focus-within,
+    .stNumberInput > div > div:focus-within {
+        box-shadow: 0 0 0 3px rgba(41,128,185,0.12) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -91,7 +269,16 @@ def resolve_symbol(code):
 # ============================================================
 # TITLE
 # ============================================================
-st.title("📊 ETF 定投回测 · 市场环境分析")
+st.markdown("""
+<h1 style="font-size:2.4rem; font-weight:800; margin-bottom:0;">
+  <span style="background:linear-gradient(135deg,#667eea,#764ba2,#f093fb);
+               background-size:200% 200%; animation:gradientShift 6s ease infinite;
+               -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+               background-clip:text;">
+    ETF 定投回测 · 市场环境分析
+  </span>
+</h1>
+""", unsafe_allow_html=True)
 st.caption(
     f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
     "v0.2.1 | "
