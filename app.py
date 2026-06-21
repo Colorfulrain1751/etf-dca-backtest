@@ -139,7 +139,7 @@ st.markdown("""
 
 _, cta_btn, _ = st.columns([1, 1, 1])
 with cta_btn:
-    st.page_link("pages/1_Analysis.py", label="开始使用", icon="▸", use_container_width=True)
+    st.page_link("pages/1_Analysis.py", label="开始使用", use_container_width=True)
 
 # ============================================================
 # FEATURES
