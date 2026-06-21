@@ -252,13 +252,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.caption(
-    f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-    "[GitHub](https://github.com/Colorfulrain1751/etf-dca-backtest) | "
-    "<span class='verified-badge'>已交叉验证</span>",
-    unsafe_allow_html=True,
-)
-
 # TITLE
 # ============================================================
 st.markdown("""
@@ -268,13 +261,7 @@ st.markdown("""
     <span style="color:#4b5563; font-weight:600;">市场环境分析</span>
 </h1>
 """, unsafe_allow_html=True)
-st.caption(
-    f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-    "v0.5 | "
-    "[GitHub](https://github.com/Colorfulrain1751/etf-dca-backtest) | "
-    "<span class='verified-badge'>已交叉验证</span>",
-    unsafe_allow_html=True,
-)
+pass  # caption removed
 
 
 # ============================================================
