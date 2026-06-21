@@ -954,21 +954,29 @@ with tab5:
 
     try:
         nb_flow = fetch_northbound_summary()
-        # Summary: 4 rows — 沪股通(北), 沪股通(南), 深股通(北), 深股通(南)
-        # Column 0=日期, 3=资金方向, 9=资金净额(亿)
+        # Column mapping (13 columns):
+        # [0]日期 [1]类型 [2]方向 [3]资金净额 [4]状态 [5]成交净买额(亿) [6]资金余额
+        # [7]当日余额 [8]上涨数 [9]平盘数 [10]下跌数 [11]指数 [12]涨跌幅
+        # Rows: 0=沪股通北 1=沪股通南 2=深股通北 3=深股通南
         if len(nb_flow) >= 4:
-            sh_n = float(nb_flow.iloc[0, 9])  # 沪股通 北上
-            sz_n = float(nb_flow.iloc[2, 9])  # 深股通 北上
-            sh_s = float(nb_flow.iloc[1, 9])  # 沪股通 南下
-            sz_s = float(nb_flow.iloc[3, 9])  # 深股通 南下
+            date_str = str(nb_flow.iloc[0, 0])
+            status = int(nb_flow.iloc[0, 4])
+            # Column 5 = 成交净买额 (net buy, in 亿元)
+            sh_n = float(nb_flow.iloc[0, 5])
+            sz_n = float(nb_flow.iloc[2, 5])
+            sh_s = float(nb_flow.iloc[1, 5])
+            sz_s = float(nb_flow.iloc[3, 5])
             n_total = sh_n + sz_n
             s_total = sh_s + sz_s
 
-            n1, n2, n3, n4 = st.columns(4)
-            n1.metric("沪股通(北上)", f"{sh_n:.1f} 亿", delta=f"{sh_n:+.1f} 亿")
-            n2.metric("深股通(北上)", f"{sz_n:.1f} 亿", delta=f"{sz_n:+.1f} 亿")
-            n3.metric("北上合计", f"{n_total:.1f} 亿", delta=f"{n_total:+.1f} 亿")
-            n4.metric("南下合计", f"{s_total:.1f} 亿", delta=f"{s_total:+.1f} 亿")
+            if status == 3:
+                st.info(f"数据日期：{date_str} · 今日休市，净买额为 0")
+            else:
+                n1, n2, n3, n4 = st.columns(4)
+                n1.metric("沪股通 北上", f"{sh_n:.1f} 亿", delta=f"{sh_n:+.1f} 亿")
+                n2.metric("深股通 北上", f"{sz_n:.1f} 亿", delta=f"{sz_n:+.1f} 亿")
+                n3.metric("北上合计", f"{n_total:.1f} 亿", delta=f"{n_total:+.1f} 亿")
+                n4.metric("南下合计", f"{s_total:.1f} 亿", delta=f"{s_total:+.1f} 亿")
         else:
             st.info("北上资金数据格式异常，请稍后重试")
     except Exception as e:
@@ -1084,13 +1092,14 @@ with tab6:
     except Exception as e:
         rsi_score = 50
 
-    # 4. Northbound score
+    # 4. Northbound score (col 1 = net buy in 亿元, drop NaN)
     try:
         nb = fetch_northbound_hist()
-        nb.iloc[:, 0] = pd.to_datetime(nb.iloc[:, 0])  # col 0 = date
+        nb.iloc[:, 0] = pd.to_datetime(nb.iloc[:, 0])
         nb = nb.sort_values(nb.columns[0])
-        recent_nb = nb.tail(20)
-        nb_net = float(recent_nb.iloc[:, 1].sum())  # col 1 = net buy
+        nb_clean = nb.dropna(subset=[nb.columns[1]])
+        recent_nb = nb_clean.tail(20)
+        nb_net = float(recent_nb.iloc[:, 1].sum())
         nb_score = 50 + (nb_net / 100) * 0.5
         nb_score = min(100, max(0, nb_score))
         score_parts["北上资金"] = nb_score
