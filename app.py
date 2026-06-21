@@ -217,6 +217,11 @@ def fetch_index_daily(symbol="sh000001"):
 def fetch_etf_history(symbol):
     return ak.fund_etf_hist_sina(symbol=symbol)
 
+@st.cache_data(ttl=86400)
+def fetch_stock_history(symbol):
+    """个股日线数据（新浪，前复权）"""
+    return ak.stock_zh_a_daily(symbol=symbol, adjust="qfq")
+
 def resolve_symbol(code):
     code = str(code).strip()
     if code.startswith("159") or code.startswith("16"):
@@ -237,7 +242,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.caption(
     f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-    "v0.3.1 | "
+    "v0.4 | "
     "[GitHub](https://github.com/Colorfulrain1751/etf-dca-backtest) | "
     "<span class='verified-badge'>已交叉验证</span>",
     unsafe_allow_html=True,
@@ -246,7 +251,7 @@ st.caption(
 # ============================================================
 # TABS
 # ============================================================
-tab1, tab2, tab3 = st.tabs(["定投回测", "市场分析", "更新日志"])
+tab1, tab2, tab3, tab4 = st.tabs(["定投回测", "市场分析", "个股分析", "更新日志"])
 
 # ============================================================
 # TAB 1 — 定投回测
@@ -621,11 +626,298 @@ with tab2:
     st.info("以上分析基于公开数据，仅供参考，不构成投资建议。数据存在 1~2 个交易日延迟。")
 
 # ============================================================
-# TAB 3 — 更新日志
+# TAB 3 — 个股分析
 # ============================================================
 with tab3:
+    st.caption("基于历史数据的量化技术分析，非预测，仅供参考")
+
+    # --- 输入区 ---
+    c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+    with c1:
+        stock_code = st.text_input(
+            "股票代码", value="600036",
+            help="沪市 600/601/603 开头 | 深市 000/002/300 开头",
+            key="stock_code",
+        )
+    with c2:
+        stock_start = st.date_input("分析起点", value=datetime(2023, 1, 1), key="stock_start")
+    with c3:
+        stock_end = st.date_input("分析终点", value=datetime.today(), key="stock_end")
+    with c4:
+        st.write("")
+        go_stock = st.button("开始分析", type="primary", use_container_width=True, key="go_stock")
+
+    with st.expander("常用股票代码参考"):
+        st.markdown("""
+        | 代码 | 名称 | 行业 | 代码 | 名称 | 行业 |
+        |------|------|------|------|------|------|
+        | **600036** | 招商银行 | 银行 | **000858** | 五粮液 | 白酒 |
+        | **600519** | 贵州茅台 | 白酒 | **000333** | 美的集团 | 家电 |
+        | **601318** | 中国平安 | 保险 | **002415** | 海康威视 | 科技 |
+        | **600900** | 长江电力 | 电力 | **300750** | 宁德时代 | 新能源 |
+        | **600276** | 恒瑞医药 | 医药 | **000001** | 平安银行 | 银行 |
+        """)
+
+    if go_stock:
+        sym = resolve_symbol(stock_code)
+
+        with st.spinner("正在获取个股行情…"):
+            try:
+                sdf = fetch_stock_history(symbol=sym)
+            except Exception as e:
+                st.error(f"获取数据失败：{e}")
+                st.stop()
+
+        if sdf.empty:
+            st.error(f"代码 {stock_code} 无数据，请检查")
+            st.stop()
+
+        # 清洗
+        sdf["date"] = pd.to_datetime(sdf["date"])
+        sdf = sdf.sort_values("date").reset_index(drop=True)
+        sdf = sdf[(sdf["date"] >= pd.Timestamp(stock_start)) & (sdf["date"] <= pd.Timestamp(stock_end))].copy()
+        if len(sdf) < 30:
+            st.warning("数据不足 30 个交易日，分析可能不准确")
+            if sdf.empty:
+                st.stop()
+
+        # ---- 技术指标 ----
+        close = sdf["close"].astype(float)
+
+        # 均线
+        sdf["MA5"]  = close.rolling(5).mean()
+        sdf["MA10"] = close.rolling(10).mean()
+        sdf["MA20"] = close.rolling(20).mean()
+        sdf["MA60"] = close.rolling(60).mean()
+
+        # MACD
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+        sdf["DIF"] = ema12 - ema26
+        sdf["DEA"] = sdf["DIF"].ewm(span=9, adjust=False).mean()
+        sdf["MACD"] = (sdf["DIF"] - sdf["DEA"]) * 2  # histogram
+
+        # RSI (14)
+        delta = close.diff()
+        gain = delta.clip(lower=0)
+        loss = (-delta).clip(lower=0)
+        avg_gain = gain.ewm(alpha=1/14, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1/14, adjust=False).mean()
+        rs = avg_gain / avg_loss.replace(0, np.nan)
+        sdf["RSI"] = 100 - (100 / (1 + rs))
+
+        # Bollinger Bands (20, 2)
+        sdf["BB_MID"] = close.rolling(20).mean()
+        bb_std = close.rolling(20).std()
+        sdf["BB_UP"] = sdf["BB_MID"] + 2 * bb_std
+        sdf["BB_DN"] = sdf["BB_MID"] - 2 * bb_std
+
+        # 成交量均线
+        sdf["VOL_MA20"] = sdf["volume"].rolling(20).mean()
+
+        # ---- 最新值 ----
+        last = sdf.iloc[-1]
+        close_now = float(last["close"])
+        date_now = last["date"]
+
+        # ---- 结果卡片 ----
+        st.markdown("""<div class="section-title">行情概览</div>""", unsafe_allow_html=True)
+
+        m1, m2, m3, m4, m5 = st.columns(5)
+        chg_1d = float((close_now / float(sdf.iloc[-2]["close"]) - 1) * 100) if len(sdf) > 1 else 0
+        with m1:
+            st.metric("最新价", f"¥{close_now:.2f}", delta=f"{chg_1d:+.2f}%")
+        with m2:
+            vol_ratio = float(last["volume"] / last["VOL_MA20"] * 100) if pd.notna(last["VOL_MA20"]) else 100
+            st.metric("成交量", f"{last['volume']/1e6:.0f}M", delta=f"{vol_ratio-100:+.0f}% vs 20日均量")
+        with m3:
+            st.metric("RSI (14)", f"{last['RSI']:.1f}")
+        with m4:
+            bb_width = (float(last["BB_UP"]) - float(last["BB_DN"])) / float(last["BB_MID"]) * 100 if pd.notna(last["BB_MID"]) else 0
+            st.metric("布林带宽度", f"{bb_width:.1f}%")
+        with m5:
+            st.metric("数据截止", date_now.strftime("%m/%d"))
+
+        # ---- 均线形态判断 ----
+        st.markdown("""<div class="section-title">均线形态</div>""", unsafe_allow_html=True)
+
+        ma5  = float(last["MA5"])
+        ma10 = float(last["MA10"])
+        ma20 = float(last["MA20"])
+        ma60 = float(last["MA60"])
+
+        signals_ma = []
+        if pd.notna(ma5) and pd.notna(ma10) and pd.notna(ma20):
+            if ma5 > ma10 > ma20:
+                signals_ma.append(("短期均线", "green", "多头排列，MA5 > MA10 > MA20"))
+            elif ma5 < ma10 < ma20:
+                signals_ma.append(("短期均线", "red", "空头排列，MA5 < MA10 < MA20"))
+            else:
+                signals_ma.append(("短期均线", "yellow", "交织震荡，方向不明"))
+
+        if pd.notna(ma20) and pd.notna(ma60):
+            if ma20 > ma60:
+                signals_ma.append(("中期均线", "green", "MA20 > MA60，中期偏多"))
+            else:
+                signals_ma.append(("中期均线", "red", "MA20 < MA60，中期偏空"))
+
+        if pd.notna(close_now) and pd.notna(ma20):
+            ratio = (close_now / ma20 - 1) * 100
+            if ratio > 5:
+                signals_ma.append(("现价 vs MA20", "yellow", f"现价高于 MA20 {ratio:+.1f}%，短线可能超买"))
+            elif ratio < -5:
+                signals_ma.append(("现价 vs MA20", "green", f"现价低于 MA20 {ratio:+.1f}%，短线可能超卖"))
+            else:
+                signals_ma.append(("现价 vs MA20", "green", f"现价贴近 MA20 ({ratio:+.1f}%)，价格合理"))
+
+        dot_c = {"green": "#059669", "yellow": "#d97706", "red": "#dc2626"}
+        for label, color, desc in signals_ma:
+            st.markdown(
+                f"<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
+                f"background:{dot_c[color]};margin-right:6px;'></span>"
+                f"<strong>{label}</strong> — {desc}",
+                unsafe_allow_html=True,
+            )
+
+        # ---- MACD 信号 ----
+        st.markdown("""<div class="section-title">MACD 信号</div>""", unsafe_allow_html=True)
+
+        dif_now = float(last["DIF"])
+        dea_now = float(last["DEA"])
+        macd_now = float(last["MACD"])
+
+        # 找金叉/死叉
+        golden_cross = None
+        death_cross = None
+        for i in range(len(sdf)-1, max(len(sdf)-60, 0), -1):
+            if pd.isna(sdf.iloc[i-1]["DIF"]) or pd.isna(sdf.iloc[i-1]["DEA"]):
+                continue
+            prev_dif = float(sdf.iloc[i-1]["DIF"])
+            prev_dea = float(sdf.iloc[i-1]["DEA"])
+            cur_dif  = float(sdf.iloc[i]["DIF"])
+            cur_dea  = float(sdf.iloc[i]["DEA"])
+            if prev_dif <= prev_dea and cur_dif > cur_dea and golden_cross is None:
+                golden_cross = sdf.iloc[i]["date"]
+            if prev_dif >= prev_dea and cur_dif < cur_dea and death_cross is None:
+                death_cross = sdf.iloc[i]["date"]
+
+        mac1, mac2, mac3 = st.columns(3)
+        with mac1:
+            st.metric("DIF", f"{dif_now:.4f}")
+        with mac2:
+            st.metric("DEA", f"{dea_now:.4f}")
+        with mac3:
+            macd_status = "DIF > DEA (偏多)" if dif_now > dea_now else "DIF < DEA (偏空)"
+            st.metric("MACD 柱", f"{macd_now:.4f}", delta=macd_status)
+
+        if golden_cross:
+            st.markdown(
+                f"<span style='color:#059669;'>●</span> 最近 <strong>金叉</strong>：{golden_cross.strftime('%Y-%m-%d')}"
+                f"（DIF 上穿 DEA，短期看多信号）",
+                unsafe_allow_html=True,
+            )
+        if death_cross:
+            st.markdown(
+                f"<span style='color:#dc2626;'>●</span> 最近 <strong>死叉</strong>：{death_cross.strftime('%Y-%m-%d')}"
+                f"（DIF 下穿 DEA，短期看空信号）",
+                unsafe_allow_html=True,
+            )
+        if not golden_cross and not death_cross:
+            st.caption("近 60 个交易日内无金叉/死叉信号")
+
+        # ---- RSI 判断 ----
+        st.markdown("""<div class="section-title">RSI 与布林带</div>""", unsafe_allow_html=True)
+
+        rsi_now = float(last["RSI"])
+        bb_up = float(last["BB_UP"])
+        bb_dn = float(last["BB_DN"])
+        bb_mid = float(last["BB_MID"])
+
+        r1, r2, r3 = st.columns(3)
+        with r1:
+            if rsi_now > 80:
+                rsi_level = "严重超买"
+                rsi_color = "#dc2626"
+            elif rsi_now > 70:
+                rsi_level = "超买区域"
+                rsi_color = "#ea580c"
+            elif rsi_now < 20:
+                rsi_level = "严重超卖"
+                rsi_color = "#059669"
+            elif rsi_now < 30:
+                rsi_level = "超卖区域"
+                rsi_color = "#059669"
+            else:
+                rsi_level = "中性区间"
+                rsi_color = "#6b7280"
+            st.markdown(
+                f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
+                f"background:{rsi_color};margin-right:6px;'></span>"
+                f"<strong>RSI = {rsi_now:.1f}</strong> — {rsi_level}",
+                unsafe_allow_html=True,
+            )
+        with r2:
+            bb_pos = (close_now - bb_dn) / (bb_up - bb_dn) * 100 if pd.notna(bb_up) and pd.notna(bb_dn) and bb_up != bb_dn else 50
+            st.metric("布林带位置", f"{bb_pos:.0f}%", delta=f"上轨 ¥{bb_up:.2f}" if close_now > bb_mid else f"下轨 ¥{bb_dn:.2f}")
+        with r3:
+            st.metric("布林上轨", f"¥{bb_up:.2f}")
+            st.metric("布林下轨", f"¥{bb_dn:.2f}")
+
+        # ---- 支撑与阻力 ----
+        st.markdown("""<div class="section-title">关键价位</div>""", unsafe_allow_html=True)
+
+        # 近 60 日最高/最低
+        recent_60 = sdf.tail(60)
+        high_60 = float(recent_60["close"].max())
+        low_60  = float(recent_60["close"].min())
+
+        sup_cols = st.columns(4)
+        with sup_cols[0]:
+            st.metric("60 日最高", f"¥{high_60:.2f}", delta=f"{(close_now/high_60-1)*100:+.1f}%")
+        with sup_cols[1]:
+            st.metric("60 日最低", f"¥{low_60:.2f}", delta=f"{(close_now/low_60-1)*100:+.1f}%")
+        with sup_cols[2]:
+            if pd.notna(ma20):
+                st.metric("MA20 支撑/阻力", f"¥{ma20:.2f}", delta=f"{(close_now/ma20-1)*100:+.1f}%")
+            else:
+                st.metric("MA20", "N/A")
+        with sup_cols[3]:
+            if pd.notna(ma60):
+                st.metric("MA60 支撑/阻力", f"¥{ma60:.2f}", delta=f"{(close_now/ma60-1)*100:+.1f}%")
+            else:
+                st.metric("MA60", "N/A")
+
+        # ---- 走势图 ----
+        st.markdown("""<div class="section-title">K 线走势 & 均线</div>""", unsafe_allow_html=True)
+        chart_data = sdf.set_index("date")[["close", "MA5", "MA10", "MA20", "MA60"]].dropna()
+        st.line_chart(chart_data, height=380, color=["#1a56db", "#f59e0b", "#8b5cf6", "#059669", "#dc2626"])
+
+        # ---- MACD 图 ----
+        st.markdown("""<div class="section-title">MACD 指标</div>""", unsafe_allow_html=True)
+        macd_data = sdf.set_index("date")[["DIF", "DEA", "MACD"]].dropna()
+        st.bar_chart(macd_data[["MACD"]], height=150, color=["#1a56db"])
+        st.line_chart(macd_data[["DIF", "DEA"]], height=200, color=["#1a56db", "#dc2626"])
+
+        # ---- 免责声明 ----
+        st.warning(
+            "以上分析全部基于历史公开数据与技术指标公式计算，仅为量化参考。"
+            "技术分析不能预测未来走势，不构成任何买卖建议。"
+            "股市有风险，投资需谨慎。"
+        )
+
+# ============================================================
+# TAB 4 — 更新日志
+# ============================================================
+with tab4:
     st.markdown("""
     ## 更新日志
+
+    ### v0.4 — 2026-06-21
+    - **个股技术分析** — 支持任意 A 股，K 线 + 均线 + MACD + RSI + 布林带
+    - 均线形态判断（多头/空头/震荡）
+    - MACD 金叉/死叉识别
+    - 支撑位 / 阻力位计算
+    - 成交量分析
 
     ### v0.3.1 — 2026-06-21
     - **全面中文化** — 所有标签、标题、说明改为通俗中文
@@ -651,10 +943,10 @@ with tab3:
     ### 路线图
     | 版本 | 计划 |
     |------|------|
-    | **v0.4** | 多只 ETF 同时对比回测 |
-    | **v0.5** | 周定投 / 双周定投模式 |
+    | **v0.5** | 多只 ETF 同时对比回测 |
     | **v0.6** | 交易费用模拟（佣金 + 印花税） |
     | **v0.7** | 策略对比（定投 vs 一次性 vs 网格） |
+    | **v0.8** | 行业板块资金流向 |
     | **v1.0** | 用户系统 + 回测记录云端保存 |
     """)
 
@@ -663,7 +955,7 @@ with tab3:
 # ============================================================
 st.markdown(f"""
 <div class="footer">
-    ETF 定投回测 v0.3.1 |
+    ETF 定投回测 v0.4 |
     <a href="https://github.com/Colorfulrain1751/etf-dca-backtest">GitHub</a> |
     数据源：新浪财经 / 乐股网 / AKShare |
     已交叉验证 · 不构成投资建议
