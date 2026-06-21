@@ -189,10 +189,10 @@ st.markdown("""
     .stAlert { border-radius: 10px !important; font-weight: 500; }
 
     html { scroll-behavior: smooth; }
-    .hero { text-align:center; padding:50px 20px 40px 20px; animation:fadeIn 0.8s ease-out; }
-    .hero h1 { font-size:2.8rem; font-weight:800; color:#111; letter-spacing:-0.5px; margin-bottom:12px; }
-    .hero .gradient { background:linear-gradient(135deg,#1a56db,#7c3aed,#db2777); background-size:200% 200%; animation:gradientFlow 6s ease infinite; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .hero .tagline { font-size:1.1rem; color:#6b7280; max-width:600px; margin:16px auto 8px auto; line-height:1.7; }
+    .hero { text-align:center; padding:80px 20px 60px 20px; animation:fadeIn 0.8s ease-out; background:linear-gradient(180deg,#1a56db 0%,#3b82f6 30%,#93c5fd 70%,#ffffff 100%); }
+    .hero h1 { font-size:2.8rem; font-weight:800; color:#fff; letter-spacing:-0.5px; margin-bottom:12px; text-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    .hero .gradient { background:linear-gradient(135deg,#fbbf24,#f59e0b,#fbbf24); background-size:200% 200%; animation:gradientFlow 4s ease infinite; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .hero .tagline { font-size:1.1rem; color:rgba(255,255,255,0.9); max-width:600px; margin:16px auto 8px auto; line-height:1.7; }
 </style>
 """, unsafe_allow_html=True)
 
