@@ -248,7 +248,7 @@ st.caption(
     unsafe_allow_html=True,
 )
 
-st.page_link("app.py", label="← 返回主页")
+st.markdown("<a href='/' target='_self' style='color:#1a56db;font-weight:600;text-decoration:none;'>← 返回主页</a>", unsafe_allow_html=True)
 
 # ============================================================
 # TABS

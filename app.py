@@ -38,7 +38,15 @@ st.markdown("""
 
 _, btn, _ = st.columns([1, 1, 1])
 with btn:
-    st.page_link("pages/analysis.py", label="开始使用", use_container_width=True)
+    st.markdown("""
+    <div style="text-align:center;">
+        <a href="/analysis" target="_self" style="display:inline-block;background:#1a56db;color:#fff;
+            padding:12px 40px;border-radius:10px;font-size:1rem;font-weight:700;text-decoration:none;
+            transition:all 0.2s;box-shadow:0 4px 16px rgba(26,86,219,0.25);">
+            开始使用
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 
