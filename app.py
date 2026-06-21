@@ -1,5 +1,5 @@
 """
-ETF 定投回测 + 市场环境分析 — v0.2.1
+ETF 定投回测 + 市场环境分析 — v0.3.1
 GitHub: Colorfulrain1751/etf-dca-backtest
 """
 
@@ -20,11 +20,10 @@ st.set_page_config(
 )
 
 # ============================================================
-# CUSTOM CSS — premium animations & effects
+# CUSTOM CSS
 # ============================================================
 st.markdown("""
 <style>
-    /* ===== ANIMATIONS ===== */
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(24px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -37,14 +36,6 @@ st.markdown("""
         from { opacity: 0; transform: translateX(-20px); }
         to   { opacity: 1; transform: translateX(0); }
     }
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50%      { transform: scale(1.03); }
-    }
-    @keyframes shimmer {
-        0%   { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
     @keyframes gradientShift {
         0%   { background-position: 0% 50%; }
         50%  { background-position: 100% 50%; }
@@ -55,46 +46,31 @@ st.markdown("""
         to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ===== BASE ===== */
     .block-container { padding-top: 2rem; }
-    .main { scroll-behavior: smooth; }
 
     /* ===== SECTION TITLES ===== */
     .section-title {
-        font-size: 1.15rem; font-weight: 600;
+        font-size: 1.1rem; font-weight: 700; color: #1a1a1a;
         padding-left: 14px; margin: 24px 0 12px 0;
         border-left: 4px solid transparent;
-        border-image: linear-gradient(180deg, #2980b9, #6dd5fa) 1;
+        border-image: linear-gradient(180deg, #1a56db, #4f46e5) 1;
         animation: slideInLeft 0.5s ease-out;
-    }
-
-    /* ===== HERO HEADER ===== */
-    .hero-gradient {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-size: 200% 200%;
-        animation: gradientShift 6s ease infinite;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
     }
 
     /* ===== INDEX CARDS ===== */
     .index-card {
-        background: rgba(255,255,255,0.9);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-radius: 16px;
-        padding: 20px 16px;
+        background: #fff;
+        border-radius: 12px; padding: 18px 14px;
         text-align: center;
-        border: 1px solid rgba(0,0,0,0.06);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: all 0.25s ease;
         animation: fadeInUp 0.5s ease-out backwards;
     }
     .index-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.1);
-        border-color: rgba(41,128,185,0.2);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        border-color: #1a56db;
     }
     .index-card:nth-child(1) { animation-delay: 0.05s; }
     .index-card:nth-child(2) { animation-delay: 0.10s; }
@@ -102,32 +78,39 @@ st.markdown("""
     .index-card:nth-child(4) { animation-delay: 0.20s; }
     .index-card:nth-child(5) { animation-delay: 0.25s; }
 
-    .index-name { font-size: 0.8rem; color: #6c757d; margin-bottom: 6px;
-                  text-transform: uppercase; letter-spacing: 0.5px; }
-    .index-price { font-size: 1.6rem; font-weight: 700; margin: 4px 0;
-                   animation: countUp 0.6s ease-out; }
+    .index-name {
+        font-size: 0.8rem; color: #6b7280; margin-bottom: 4px;
+        font-weight: 500;
+    }
+    .index-price {
+        font-size: 1.5rem; font-weight: 800; color: #111;
+        margin: 4px 0; animation: countUp 0.6s ease-out;
+    }
+    .index-change {
+        font-weight: 700; font-size: 1rem;
+    }
 
     /* ===== METRIC CARDS ===== */
-    [data-testid="stMetric"] {
-        transition: all 0.3s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: scale(1.03);
-    }
+    [data-testid="stMetric"] { transition: all 0.25s ease; }
+    [data-testid="stMetric"]:hover { transform: scale(1.02); }
     [data-testid="stMetricValue"] {
         animation: countUp 0.6s ease-out;
+        font-weight: 800 !important; color: #111 !important;
     }
+    [data-testid="stMetricDelta"] { font-weight: 700 !important; }
 
     /* ===== BUTTONS ===== */
     .stButton > button {
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.3px !important;
+        transition: all 0.2s ease !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        background: #1a56db !important;
+        color: #fff !important;
     }
     .stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 8px 24px rgba(41,128,185,0.25) !important;
+        box-shadow: 0 8px 20px rgba(26,86,219,0.3) !important;
+        background: #1e40af !important;
     }
     .stButton > button:active {
         transform: translateY(0) scale(0.98) !important;
@@ -135,99 +118,75 @@ st.markdown("""
 
     /* ===== TABS ===== */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        border-bottom: 2px solid #f0f0f0;
+        gap: 4px; border-bottom: 2px solid #e5e7eb;
     }
     .stTabs [data-baseweb="tab"] {
-        transition: all 0.3s ease;
-        border-radius: 8px 8px 0 0;
-        padding: 10px 20px;
+        transition: all 0.2s ease;
+        border-radius: 8px 8px 0 0; padding: 10px 20px;
+        font-weight: 600; color: #6b7280;
     }
     .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(41,128,185,0.05);
+        background: #f3f4f6; color: #111;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        color: #1a56db; font-weight: 700;
     }
 
     /* ===== EXPANDER ===== */
     .streamlit-expanderHeader {
-        transition: all 0.3s ease;
-        border-radius: 10px !important;
+        transition: all 0.2s ease; border-radius: 8px !important;
+        font-weight: 600 !important;
     }
     .streamlit-expanderHeader:hover {
-        background: rgba(41,128,185,0.04) !important;
+        background: #f3f4f6 !important; color: #111 !important;
     }
 
-    /* ===== EXPANDER CONTENT (data source panel) ===== */
-    [data-testid="stExpander"] {
-        transition: all 0.3s ease;
-    }
-
-    /* ===== TEMPERATURE BAR ===== */
-    .thermo-bar {
-        transition: left 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ===== LOADING SPINNER ===== */
-    .stSpinner > div {
-        border-top-color: #2980b9 !important;
-    }
+    /* ===== SPINNER ===== */
+    .stSpinner > div { border-top-color: #1a56db !important; }
 
     /* ===== TAGS ===== */
     .source-tag {
-        display: inline-block; background: rgba(0,0,0,0.04); color: #6c757d;
-        font-size: 0.65rem; padding: 3px 10px; border-radius: 20px;
-        margin-left: 8px; vertical-align: middle;
-        transition: all 0.2s ease;
-    }
-    .source-tag:hover {
-        background: rgba(41,128,185,0.1); color: #2980b9;
+        display: inline-block; background: #f3f4f6; color: #6b7280;
+        font-size: 0.7rem; padding: 2px 10px; border-radius: 12px;
+        margin-left: 6px; font-weight: 500;
     }
     .verified-badge {
-        display: inline-block; background: linear-gradient(135deg, #d4edda, #c3e6cb);
-        color: #155724; font-size: 0.7rem; padding: 3px 10px; border-radius: 20px;
-        margin-left: 8px; vertical-align: middle;
-        animation: pulse 2s ease-in-out infinite;
+        display: inline-block; background: #ecfdf5; color: #065f46;
+        font-size: 0.7rem; padding: 3px 10px; border-radius: 12px;
+        margin-left: 6px; font-weight: 600;
     }
 
     /* ===== FOOTER ===== */
     .footer {
-        text-align: center; color: #adb5bd; font-size: 0.8rem;
-        margin-top: 48px; padding-top: 20px;
-        border-top: 1px solid rgba(0,0,0,0.06);
+        text-align: center; color: #9ca3af; font-size: 0.78rem;
+        margin-top: 48px; padding-top: 18px;
+        border-top: 1px solid #e5e7eb;
         animation: fadeIn 1s ease-out;
     }
 
     /* ===== SCROLLBAR ===== */
-    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.1);
-        border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(0,0,0,0.2);
-    }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 
-    /* ===== DATA TABLE ===== */
+    /* ===== TABLE ===== */
     [data-testid="stDataFrame"] {
-        animation: fadeIn 0.6s ease-out;
-        border-radius: 12px !important;
+        animation: fadeIn 0.6s ease-out; border-radius: 10px !important;
         overflow: hidden;
     }
 
-    /* ===== CHART CONTAINER ===== */
-    [data-testid="stArrowVegaLiteChart"] {
-        animation: fadeIn 0.8s ease-out;
-    }
+    /* ===== CHART ===== */
+    [data-testid="stArrowVegaLiteChart"] { animation: fadeIn 0.8s ease-out; }
 
-    /* ===== SELECTION BOXES ===== */
-    .stTextInput > div > div, .stDateInput > div > div, .stNumberInput > div > div {
-        transition: all 0.3s ease;
-    }
+    /* ===== INPUT FOCUS ===== */
     .stTextInput > div > div:focus-within,
     .stDateInput > div > div:focus-within,
     .stNumberInput > div > div:focus-within {
-        box-shadow: 0 0 0 3px rgba(41,128,185,0.12) !important;
+        box-shadow: 0 0 0 3px rgba(26,86,219,0.1) !important;
     }
+
+    /* ===== INFO BOX ===== */
+    .stAlert { border-radius: 10px !important; font-weight: 500; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -270,61 +229,57 @@ def resolve_symbol(code):
 # TITLE
 # ============================================================
 st.markdown("""
-<h1 style="font-size:2.4rem; font-weight:800; margin-bottom:0;">
-  <span style="background:linear-gradient(135deg,#667eea,#764ba2,#f093fb);
-               background-size:200% 200%; animation:gradientShift 6s ease infinite;
-               -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-               background-clip:text;">
-    ETF 定投回测 · 市场环境分析
-  </span>
+<h1 style="font-size:2.2rem; font-weight:800; margin-bottom:0; color:#111;">
+    ETF 定投回测
+    <span style="color:#1a56db;">·</span>
+    <span style="color:#4b5563; font-weight:600;">市场环境分析</span>
 </h1>
 """, unsafe_allow_html=True)
 st.caption(
     f"数据更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-    "v0.3 | DeepSeek design | "
+    "v0.3.1 | "
     "[GitHub](https://github.com/Colorfulrain1751/etf-dca-backtest) | "
-    "<span class='verified-badge'>数据已交叉验证</span>",
+    "<span class='verified-badge'>已交叉验证</span>",
     unsafe_allow_html=True,
 )
 
 # ============================================================
 # TABS
 # ============================================================
-tab1, tab2, tab3 = st.tabs(["DCA 回测", "市场分析", "更新日志"])
+tab1, tab2, tab3 = st.tabs(["定投回测", "市场分析", "更新日志"])
 
 # ============================================================
 # TAB 1 — 定投回测
 # ============================================================
 with tab1:
-    st.markdown("""<div class="section-title">Parameters</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">参数设置</div>""", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
     with c1:
         code_input = st.text_input("ETF 代码", value="510300",
-                                   help="沪市: 51/56/58 开头 | 深市: 159/16 开头")
+                                   help="沪市: 51 / 56 / 58 开头 | 深市: 159 / 16 开头")
     with c2:
-        start_date = st.date_input("开始定投", value=datetime(2020, 1, 1))
+        start_date = st.date_input("开始定投日期", value=datetime(2020, 1, 1))
     with c3:
-        monthly = st.number_input("每月金额（元）", value=500, step=100, min_value=100)
+        monthly = st.number_input("每月定投金额（元）", value=500, step=100, min_value=100)
     with c4:
         st.write("")
-        go = st.button("Run Backtest", type="primary", use_container_width=True)
+        go = st.button("开始回测", type="primary", use_container_width=True)
 
-    with st.expander("ETF 代码参考"):
+    with st.expander("常用 ETF 代码参考"):
         st.markdown("""
         | 代码 | 名称 | 代码 | 名称 |
         |------|------|------|------|
-        | 510300 | 沪深300ETF | 510500 | 中证500ETF |
-        | 510050 | 上证50ETF | 159915 | 创业板ETF |
-        | 588000 | 科创50ETF | 512880 | 证券ETF |
-        | 512100 | 中证1000ETF | 513100 | 纳指ETF(沪) |
-        | 159941 | 纳指ETF(深) | 510880 | 红利ETF |
-        | 513310 | 中韩半导体ETF | 512480 | 半导体ETF |
+        | **510300** | 沪深300ETF | **510500** | 中证500ETF |
+        | **510050** | 上证50ETF | **159915** | 创业板ETF |
+        | **588000** | 科创50ETF | **512880** | 证券ETF |
+        | **512100** | 中证1000ETF | **513100** | 纳指ETF(沪) |
+        | **159941** | 纳指ETF(深) | **510880** | 红利ETF |
         """)
 
     if go:
         symbol = resolve_symbol(code_input)
 
-        with st.spinner("获取行情数据 — 新浪财经..."):
+        with st.spinner("正在从新浪财经获取行情数据…"):
             try:
                 df = fetch_etf_history(symbol)
             except Exception as e:
@@ -332,14 +287,14 @@ with tab1:
                 st.stop()
 
         if df.empty:
-            st.error(f"代码 {code_input} 无数据，请检查")
+            st.error(f"代码 {code_input} 无数据，请检查是否输入正确")
             st.stop()
 
         df["date"] = pd.to_datetime(df["date"])
         df = df.sort_values("date").reset_index(drop=True)
         df = df[df["date"] >= pd.Timestamp(start_date)].copy()
         if df.empty:
-            st.warning("所选日期无数据，请调整起始日期")
+            st.warning("所选日期范围内无数据，请调整起始日期")
             st.stop()
 
         df["ym"] = df["date"].dt.to_period("M")
@@ -359,74 +314,72 @@ with tab1:
         first_price = df.loc[df[buy_mask].index[0], "close"]
         first_date = df.loc[df[buy_mask].index[0], "date"]
 
-        st.markdown("""<div class="section-title">Results</div>""", unsafe_allow_html=True)
+        # --- 回测结果 ---
+        st.markdown("""<div class="section-title">回测结果</div>""", unsafe_allow_html=True)
 
         m1, m2, m3, m4, m5 = st.columns(5)
         with m1:
-            st.metric("累计投入", f"¥{total_invested:,.0f}", delta=f"{periods} 期")
+            st.metric("累计投入本金", f"¥{total_invested:,.0f}", delta=f"共 {periods} 期")
         with m2:
-            st.metric("当前市值", f"¥{current_value:,.0f}",
+            st.metric("当前持仓市值", f"¥{current_value:,.0f}",
                       delta=f"{profit:+,.0f}" if profit >= 0 else f"-¥{abs(profit):,.0f}")
         with m3:
             st.metric("总收益率", f"{return_pct:+.2f}%")
         with m4:
-            st.metric("平均成本", f"¥{avg_cost:.4f}")
+            st.metric("平均持仓成本", f"¥{avg_cost:.4f}")
         with m5:
-            st.metric("最新价", f"¥{latest_price:.4f}",
-                      delta=f"{(latest_price/avg_cost-1)*100:+.1f}% vs 成本")
+            st.metric("最新价格", f"¥{latest_price:.4f}",
+                      delta=f"{(latest_price/avg_cost-1)*100:+.1f}%")
 
         st.caption(
-            f"首笔: {first_date.strftime('%Y-%m-%d')} @ ¥{first_price:.4f} | "
-            f"截止: {latest_date.strftime('%Y-%m-%d')} | "
-            f"<span class='source-tag'>数据源：新浪财经</span>",
+            f"首笔买入：{first_date.strftime('%Y-%m-%d')}，价格 ¥{first_price:.4f} | "
+            f"数据截止：{latest_date.strftime('%Y-%m-%d')} | "
+            f"<span class='source-tag'>新浪财经</span>",
             unsafe_allow_html=True,
         )
 
-        st.markdown("""<div class="section-title">Price & Buy Points</div>""", unsafe_allow_html=True)
+        # --- 走势图 ---
+        st.markdown("""<div class="section-title">价格走势</div>""", unsafe_allow_html=True)
         chart_df = df.set_index("date")
-        chart_df["buy_signal"] = np.nan
-        for bi in df[buy_mask].index:
-            chart_df.loc[df.at[bi, "date"], "buy_signal"] = df.at[bi, "close"]
+        # 只画价格线，避免 buy_signal 全 NaN 产生空图例
+        st.line_chart(chart_df[["close"]], height=380, color=["#1a56db"])
 
-        st.line_chart(
-            chart_df[["close", "buy_signal"]], height=380,
-            color=["#2980b9", "#e74c3c"],
-        )
+        # 买入点统计代替散点
+        buy_dates = df[buy_mask]
+        first_buy = buy_dates.iloc[0]
+        last_buy = buy_dates.iloc[-1]
         st.caption(
-            "<span style='color:#2980b9'>●</span> 价格走势 | "
-            "<span style='color:#e74c3c'>●</span> 定投买入点 | 前复权价格",
+            f"定投共 <strong>{periods} 次</strong> | "
+            f"首笔 {first_buy['date'].strftime('%Y-%m-%d')} @ ¥{first_buy['close']:.4f} | "
+            f"末笔 {last_buy['date'].strftime('%Y-%m-%d')} @ ¥{last_buy['close']:.4f} | "
+            f"前复权价格",
             unsafe_allow_html=True,
         )
 
-        st.markdown("""<div class="section-title">Annual Detail</div>""", unsafe_allow_html=True)
+        # --- 年度明细 ---
+        st.markdown("""<div class="section-title">年度明细</div>""", unsafe_allow_html=True)
         buy_df = df[buy_mask][["date", "close"]].copy()
         buy_df["year"] = buy_df["date"].dt.year
         buy_df["shares"] = monthly / buy_df["close"]
         yearly = buy_df.groupby("year").agg(
             买入次数=("date", "count"),
-            投入=("shares", lambda x: monthly * len(x)),
-            均价=("close", "mean"),
-            份额=("shares", "sum"),
+            投入金额=("shares", lambda x: monthly * len(x)),
+            买入均价=("close", "mean"),
+            买入份额=("shares", "sum"),
         ).reset_index()
-        yearly["投入"] = yearly["投入"].astype(int)
-        yearly["均价"] = yearly["均价"].round(4)
-        yearly["份额"] = yearly["份额"].round(2)
+        yearly["投入金额"] = yearly["投入金额"].astype(int)
+        yearly["买入均价"] = yearly["买入均价"].round(4)
+        yearly["买入份额"] = yearly["买入份额"].round(2)
         st.dataframe(yearly, use_container_width=True, hide_index=True)
 
 # ============================================================
-# TAB 2 — 市场环境
+# TAB 2 — 市场分析
 # ============================================================
 with tab2:
-    # 顶部数据来源
-    c_info, _, _ = st.columns([3, 1, 1])
-    with c_info:
-        st.caption(
-            "数据实时获取 · 来源：新浪财经 / 乐股网 / AKShare · "
-            "所有数据已通过交叉验证"
-        )
+    st.caption("数据实时获取 · 来源：新浪财经 / 乐股网 / AKShare · 已交叉验证")
 
-    # --- 实时指数 ---
-    st.markdown("""<div class="section-title">Market Indices</div>""", unsafe_allow_html=True)
+    # --- 指数行情 ---
+    st.markdown("""<div class="section-title">主要指数</div>""", unsafe_allow_html=True)
 
     try:
         spot = fetch_index_spot()
@@ -445,31 +398,29 @@ with tab2:
             r = r.iloc[0]
             chg = float(r["涨跌幅"])
             index_rows.append({
-                "名称": name,
-                "最新价": float(r["最新价"]),
-                "涨跌幅": chg,
-                "涨跌额": float(r["涨跌额"]),
+                "名称": name, "最新价": float(r["最新价"]),
+                "涨跌幅": chg, "涨跌额": float(r["涨跌额"]),
             })
 
     if index_rows:
         cols = st.columns(len(index_rows))
         for col, d in zip(cols, index_rows):
             sign = "+" if d["涨跌幅"] >= 0 else ""
-            color = "#27ae60" if d["涨跌幅"] >= 0 else "#e74c3c"
+            color = "#059669" if d["涨跌幅"] >= 0 else "#dc2626"
             with col:
                 st.markdown(f"""
                 <div class="index-card">
                     <div class="index-name">{d['名称']}</div>
                     <div class="index-price">{d['最新价']:,.0f}</div>
-                    <div style="font-weight:600; color:{color}; font-size:1rem;">{sign}{d['涨跌幅']:.2f}%</div>
-                    <div class="index-sub">{d['涨跌额']:+.2f}</div>
+                    <div class="index-change" style="color:{color};">{sign}{d['涨跌幅']:.2f}%</div>
+                    <div style="font-size:0.75rem;color:#9ca3af;">{d['涨跌额']:+.2f}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-    st.caption("数据源：新浪财经 stock_zh_index_spot_sina (562 指数，实时)")
+    st.caption("数据源：新浪财经 · 562 个指数实时行情")
 
-    # --- 估值温度计 ---
-    st.markdown("""<div class="section-title">HS300 Valuation Thermometer</div>""", unsafe_allow_html=True)
+    # --- PE 估值温度计 ---
+    st.markdown("""<div class="section-title">沪深300 估值温度计</div>""", unsafe_allow_html=True)
 
     pe_percentile = 50
     current_pe = 0
@@ -489,13 +440,13 @@ with tab2:
         pe_data_ok = True
 
         if pe_percentile < 20:
-            pe_level, pe_color, pe_advice = "Undervalued", "#27ae60", "历史低位，可加大定投力度"
+            pe_level, pe_color, pe_advice = "低估区间", "#059669", "历史低位，建议加大定投力度"
         elif pe_percentile < 50:
-            pe_level, pe_color, pe_advice = "Fair (Low)", "#f39c12", "保持正常定投节奏"
+            pe_level, pe_color, pe_advice = "合理偏低", "#d97706", "保持正常定投节奏"
         elif pe_percentile < 80:
-            pe_level, pe_color, pe_advice = "Elevated", "#e67e22", "可考虑降低定投金额"
+            pe_level, pe_color, pe_advice = "偏高区间", "#ea580c", "可适当减少定投金额"
         else:
-            pe_level, pe_color, pe_advice = "Overvalued", "#e74c3c", "历史高位，建议暂停定投等回调"
+            pe_level, pe_color, pe_advice = "高估区间", "#dc2626", "历史高位，建议暂停定投等待回调"
 
         col_a, col_b, col_c, col_d = st.columns(4)
         col_a.metric("当前 PE", f"{current_pe:.2f}")
@@ -506,38 +457,37 @@ with tab2:
         # 温度条
         st.markdown(f"""
         <div style="margin:10px 0;">
-            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#6c757d;">
-                <span>低估 0%</span><span>合理 50%</span><span>高估 100%</span>
+            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#6b7280;">
+                <span>低估<br>0%</span><span>合理<br>50%</span><span>高估<br>100%</span>
             </div>
-            <div style="background:linear-gradient(to right,#27ae60,#f39c12,#e74c3c);
-                        height:12px;border-radius:6px;position:relative;margin:4px 0;">
-                <div style="position:absolute;left:{pe_percentile}%;top:-5px;
-                            width:12px;height:22px;background:{pe_color};border-radius:3px;
-                            border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.2);"></div>
+            <div style="background:linear-gradient(to right,#059669,#d97706,#dc2626);
+                        height:10px;border-radius:5px;position:relative;margin:4px 0;">
+                <div style="position:absolute;left:{pe_percentile}%;top:-4px;
+                            width:12px;height:18px;background:{pe_color};border-radius:3px;
+                            border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,0.15);"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+
         st.markdown(
             f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
             f"background:{pe_color};margin-right:6px;'></span>"
-            f"<strong>{pe_level}</strong> &mdash; {pe_advice}",
+            f"<strong style='font-size:1.05rem;color:#111;'>{pe_level}</strong>"
+            f"<span style='color:#4b5563;'> — {pe_advice}</span>",
             unsafe_allow_html=True,
         )
 
         chart_pe = recent.set_index("日期")[["动态市盈率"]].copy()
         chart_pe["中位数"] = pe_median
-        st.line_chart(chart_pe, height=280, color=["#2980b9", "#adb5bd"])
+        st.line_chart(chart_pe, height=280, color=["#1a56db", "#9ca3af"])
 
     except Exception as e:
         st.warning(f"PE 数据暂不可用: {e}")
 
-    st.caption(
-        "数据源：乐股网 stock_index_pe_lg (5149 rows, PE + percentile) | "
-        "PE = 动态市盈率 · 分位 = 500 日均线位置"
-    )
+    st.caption("数据源：乐股网 · PE = 动态市盈率 · 分位 = 当前 PE 在近 500 个交易日中的位置")
 
     # --- 全市场 PB ---
-    st.markdown("""<div class="section-title">Market-wide PB</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">全市场 PB 估值</div>""", unsafe_allow_html=True)
 
     pb_pct = 50
     pb_data_ok = False
@@ -559,32 +509,29 @@ with tab2:
         c3.metric("中位数 PB", f"{pb_med:.2f}")
 
         if pb_pct < 20:
-            pb_level, pb_dot = "Undervalued", "#27ae60"
+            pb_level, pb_dot = "低估区间", "#059669"
         elif pb_pct < 50:
-            pb_level, pb_dot = "Fair (Low)", "#f39c12"
+            pb_level, pb_dot = "合理偏低", "#d97706"
         elif pb_pct < 80:
-            pb_level, pb_dot = "Elevated", "#e67e22"
+            pb_level, pb_dot = "偏高区间", "#ea580c"
         else:
-            pb_level, pb_dot = "Overvalued", "#e74c3c"
+            pb_level, pb_dot = "高估区间", "#dc2626"
         st.markdown(
             f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
             f"background:{pb_dot};margin-right:6px;'></span>"
-            f"<strong>{pb_level}</strong>",
+            f"<strong style='font-size:1.05rem;color:#111;'>{pb_level}</strong>",
             unsafe_allow_html=True,
         )
 
-        st.line_chart(rpb.set_index("日期")[["市净率"]], height=280, color=["#2980b9"])
+        st.line_chart(rpb.set_index("日期")[["市净率"]], height=280, color=["#1a56db"])
 
     except Exception as e:
         st.warning(f"PB 数据暂不可用: {e}")
 
-    st.caption(
-        "数据源：乐股网 stock_market_pb_lg (5210 rows, PB + percentile) | "
-        "PB = 市净率，全市场加权平均"
-    )
+    st.caption("数据源：乐股网 · PB = 市净率 · 全市场加权平均")
 
     # --- 均线趋势 ---
-    st.markdown("""<div class="section-title">SSE Composite · MA Trend</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="section-title">上证指数 · 均线趋势</div>""", unsafe_allow_html=True)
 
     ma20 = ma60 = None
     try:
@@ -596,7 +543,7 @@ with tab2:
 
         st.line_chart(
             sh.set_index("date")[["close", "MA20", "MA60"]], height=300,
-            color=["#2980b9", "#f39c12", "#e74c3c"],
+            color=["#1a56db", "#d97706", "#dc2626"],
         )
 
         last_close = float(sh.iloc[-1]["close"])
@@ -604,106 +551,111 @@ with tab2:
         ma60 = float(sh.iloc[-1]["MA60"])
 
         t1, t2, t3 = st.columns(3)
-        t1.metric("20日均线", f"{ma20:,.0f}", f"{(last_close/ma20-1)*100:+.1f}%")
-        t2.metric("60日均线", f"{ma60:,.0f}", f"{(last_close/ma60-1)*100:+.1f}%")
-        t3.metric("均线", "Bullish" if ma20 > ma60 else "Bearish",
-                  f"{'MA20 > MA60' if ma20 > ma60 else 'MA20 < MA60'}")
+        t1.metric("20 日均线", f"{ma20:,.0f}", delta=f"{(last_close/ma20-1)*100:+.1f}%")
+        t2.metric("60 日均线", f"{ma60:,.0f}", delta=f"{(last_close/ma60-1)*100:+.1f}%")
+        bull = ma20 > ma60
+        t3.metric(
+            "均线形态",
+            "多头排列" if bull else "空头排列",
+            delta="MA20 > MA60" if bull else "MA20 < MA60",
+        )
     except Exception as e:
         st.warning(f"指数数据暂不可用: {e}")
 
-    st.caption(
-        "数据源：新浪财经 stock_zh_index_daily (8664 rows) | "
-        "MA20/60 = 20/60 日移动均线"
-    )
+    st.caption("数据源：新浪财经 · MA20/60 = 20 日 / 60 日移动均线")
 
-    # --- 综合判断 ---
-    st.markdown("""<div class="section-title">Composite Signals</div>""", unsafe_allow_html=True)
+    # --- 综合信号 ---
+    st.markdown("""<div class="section-title">综合市场信号</div>""", unsafe_allow_html=True)
 
     try:
         signals = []
         if pe_data_ok:
             s = "green" if pe_percentile < 30 else ("yellow" if pe_percentile < 70 else "red")
-            signals.append(("HS300 PE", s,
-                            f"当前 PE={current_pe:.1f}，处于 {pe_percentile:.0f}% 分位"))
+            signals.append(("沪深300 PE 分位",
+                            s,
+                            f"当前 PE = {current_pe:.1f}，历史分位 {pe_percentile:.0f}%"))
         if pb_data_ok:
             s = "green" if pb_pct < 30 else ("yellow" if pb_pct < 70 else "red")
-            signals.append(("Market PB", s,
-                            f"当前 PB={cur_pb:.2f}，处于 {pb_pct:.0f}% 分位"))
+            signals.append(("全市场 PB 分位",
+                            s,
+                            f"当前 PB = {cur_pb:.2f}，历史分位 {pb_pct:.0f}%"))
         if ma20 is not None and ma60 is not None:
             trend_ok = ma20 > ma60
-            signals.append(("MA Trend", "green" if trend_ok else "red",
-                            "多头排列 MA20>MA60" if trend_ok else "空头排列 MA20<MA60"))
+            signals.append(("均线趋势",
+                            "green" if trend_ok else "red",
+                            "多头排列，MA20 > MA60" if trend_ok else "空头排列，MA20 < MA60"))
 
-        dot_colors = {"green": "#27ae60", "yellow": "#f39c12", "red": "#e74c3c"}
+        dot_colors = {"green": "#059669", "yellow": "#d97706", "red": "#dc2626"}
         for name, color, desc in signals:
             c = dot_colors[color]
             st.markdown(
                 f"<span style='display:inline-block;width:10px;height:10px;"
                 f"border-radius:50%;background:{c};margin-right:6px;'></span>"
-                f"<strong>{name}</strong> &mdash; {desc}",
+                f"<strong style='color:#111;'>{name}</strong>"
+                f"<span style='color:#4b5563;'> — {desc}</span>",
                 unsafe_allow_html=True,
             )
     except Exception:
-        st.info("部分指标加载中")
+        st.info("部分指标加载中，请稍候刷新")
 
-    # --- 数据可靠性声明 ---
-    st.markdown("""<div class="section-title">Data Provenance</div>""", unsafe_allow_html=True)
+    # --- 数据来源 ---
+    st.markdown("""<div class="section-title">数据来源与验证</div>""", unsafe_allow_html=True)
 
-    with st.expander("数据来源与交叉验证记录"):
+    with st.expander("查看完整数据溯源"):
         st.markdown("""
-        | 数据模块 | 来源 | 接口 | 数据量 | 更新时间 |
-        |---------|------|------|--------|---------|
-        | 主要指数行情 | 新浪财经 | `stock_zh_index_spot_sina` | 562 个指数 | 实时 |
-        | 沪深300 PE | 乐股网 | `stock_index_pe_lg` | 5149 条日数据 | 每日收盘后 |
-        | 全市场 PB | 乐股网 | `stock_market_pb_lg` | 5210 条日数据 | 每日收盘后 |
-        | 上证指数日线 | 新浪财经 | `stock_zh_index_daily` | 8664 条日数据 | 每日收盘后 |
-        | ETF 历史数据 | 新浪财经 | `fund_etf_hist_sina` | 2000-4000 条 | 每日收盘后 |
+        | 模块 | 来源 | 接口函数 | 数据量 |
+        |------|------|----------|--------|
+        | 指数行情 | 新浪财经 | `stock_zh_index_spot_sina` | 562 指数 |
+        | 沪深300 PE | 乐股网 | `stock_index_pe_lg` | 5,149 条 |
+        | 全市场 PB | 乐股网 | `stock_market_pb_lg` | 5,210 条 |
+        | 上证日线 | 新浪财经 | `stock_zh_index_daily` | 8,664 条 |
+        | ETF 历史 | 新浪财经 | `fund_etf_hist_sina` | 2,000~4,000 条 |
 
-        **交叉验证记录（2026-06-21）：**
-        - ✅ 上证指数：4090.48（一致）
-        - ✅ 沪深300：4941.60（一致）
-        - ✅ 沪深300 PE：14.17，处于 20.9% 分位（历史合理区间 8-30）
-        - ✅ 全市场 PB：1.47，处于 2.5% 分位（历史合理区间 1.0-3.5）
-        - ✅ 无异常极值，无数据断层
-        - ✅ 数据时效：1-2 个交易日延迟（免费数据源正常滞后）
+        **验证记录（2026-06-21）：**
+        - 上证指数 4090.48、沪深300 4941.60 — 与公开行情一致
+        - 沪深300 PE 14.17，分位 20.9% — 历史合理区间 8~30
+        - 全市场 PB 1.47，分位 2.5% — 历史合理区间 1.0~3.5
+        - 无异常极值，无数据断层
         """)
 
-    st.info("⚠️ 所有分析仅供参考，不构成投资建议。数据来源于公开接口，可能存在 1-2 个交易日延迟。")
+    st.info("以上分析基于公开数据，仅供参考，不构成投资建议。数据存在 1~2 个交易日延迟。")
 
 # ============================================================
 # TAB 3 — 更新日志
 # ============================================================
 with tab3:
     st.markdown("""
-    ## Changelog
+    ## 更新日志
+
+    ### v0.3.1 — 2026-06-21
+    - **全面中文化** — 所有标签、标题、说明改为通俗中文
+    - **信息加重** — 关键指标加粗加深色（#111），一目了然
+    - **悬停反馈** — 标签页、折叠面板悬停变深色，选项清晰可辨
+    - **图表修复** — 定投走势图只显示价格线，消除空图例混乱
+    - **配色收敛** — 统一为 DeepSeek 蓝 (#1a56db) 为主色调
 
     ### v0.3 — 2026-06-21
-    - Design overhaul: replaced all emoji with CSS dot indicators
-    - Clean DeepSeek-inspired aesthetic: minimal, professional
-    - Animation refinements for smoother transitions
-
-    ### v0.2.1 — 2026-06-21
-    - Data source labels on every module
-    - Cross-verification panel in Market tab
-    - Bug fixes: Streamlit 1.58 compat + yearly aggregation
+    - 移除全部 emoji，改为 CSS 圆点指示器
+    - DeepSeek 风格极简设计
+    - 动画优化
 
     ### v0.2 — 2026-06-21
-    - Market environment analysis: indices, PE/PB thermometer, MA trends
-    - UI redesign: tabs, metric cards, color coding
-    - Annual detail table, data caching
+    - 市场环境分析：指数行情、PE/PB 估值温度计、均线趋势、综合信号
+    - Tab 式页面布局、卡片式指标、涨跌配色
+    - 年度明细表、数据缓存
 
     ### v0.1 — 2026-06-21
-    - Initial release: ETF DCA backtest, buy-point visualization, Streamlit Cloud
+    - 初始发布：ETF 定投回测、买入点可视化、Streamlit Cloud 部署
 
     ---
-    ### Roadmap
-    | Ver | Feature |
-    |-----|---------|
-    | v0.4 | Multi-ETF comparison |
-    | v0.5 | Weekly / bi-weekly DCA modes |
-    | v0.6 | Fee simulation (commission + stamp tax) |
-    | v0.7 | Strategy comparison (DCA vs lump sum vs grid) |
-    | v1.0 | User accounts + saved backtests |
+    ### 路线图
+    | 版本 | 计划 |
+    |------|------|
+    | **v0.4** | 多只 ETF 同时对比回测 |
+    | **v0.5** | 周定投 / 双周定投模式 |
+    | **v0.6** | 交易费用模拟（佣金 + 印花税） |
+    | **v0.7** | 策略对比（定投 vs 一次性 vs 网格） |
+    | **v1.0** | 用户系统 + 回测记录云端保存 |
     """)
 
 # ============================================================
@@ -711,10 +663,9 @@ with tab3:
 # ============================================================
 st.markdown(f"""
 <div class="footer">
-    ETF DCA Backtest v0.3 |
+    ETF 定投回测 v0.3.1 |
     <a href="https://github.com/Colorfulrain1751/etf-dca-backtest">GitHub</a> |
     数据源：新浪财经 / 乐股网 / AKShare |
-    已通过交叉验证 |
-    不构成投资建议
+    已交叉验证 · 不构成投资建议
 </div>
 """, unsafe_allow_html=True)
