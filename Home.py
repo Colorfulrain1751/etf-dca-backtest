@@ -134,9 +134,12 @@ st.markdown("""
         基于真实行情数据，3 秒完成定投回测、估值分析和个股技术诊断。
         让每一次决策都有数据支撑，而不是"听别人说"。
     </p>
-    <a href="/1_Analysis" class="cta" target="_self">开始使用</a>
 </div>
 """, unsafe_allow_html=True)
+
+_, cta_btn, _ = st.columns([1, 1, 1])
+with cta_btn:
+    st.page_link("pages/1_Analysis.py", label="开始使用", icon="▸", use_container_width=True)
 
 # ============================================================
 # FEATURES
