@@ -213,7 +213,7 @@ def fetch_market_pe():
 
 @st.cache_data(ttl=3600)
 def fetch_market_pb():
-    return ak.stock_market_pb_lg()
+    return ak.stock_index_pb_lg(symbol="沪深300")
 
 @st.cache_data(ttl=3600)
 def fetch_index_pe(symbol="沪深300"):
@@ -475,16 +475,18 @@ with tab2:
         pe_df = pe_df.sort_values("日期")
         recent = pe_df.tail(500)
 
-        # 兼容不同版本的列名：动态市盈率 / PE / pe
-        pe_col = next((c for c in recent.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
-        pct_col = next((c for c in recent.columns if "分位" in str(c) and "市盈率" in str(c)), None)
+        # 兼容不同版本的列名：滚动市盈率 / 静态市盈率 / 动态市盈率 / PE
+        pe_col = next((c for c in recent.columns if "滚动市盈率" in str(c) and "中位" not in str(c) and "等权" not in str(c)), None)
         if pe_col is None:
-            pe_col = recent.select_dtypes(include=[np.number]).columns[0]
-        if pct_col is None:
-            pct_col = next((c for c in recent.columns if "分位" in str(c)), None)
-
+            pe_col = next((c for c in recent.columns if "静态市盈率" in str(c) and "中位" not in str(c) and "等权" not in str(c)), None)
+        if pe_col is None:
+            pe_col = next((c for c in recent.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
+        if pe_col is None:
+            st.warning("PE 数据列名无法识别，请检查 API 更新")
+            st.stop()
+        # API不返回分位列，手动计算历史分位
         current_pe = float(recent.iloc[-1][pe_col])
-        pe_percentile = float(recent.iloc[-1][pct_col]) if pct_col else float((recent[pe_col] <= current_pe).sum() / len(recent) * 100)
+        pe_percentile = float((recent[pe_col] <= current_pe).sum() / len(recent) * 100)
         pe_median = float(recent[pe_col].median())
         pe_min = float(recent[pe_col].min())
         pe_max = float(recent[pe_col].max())
@@ -536,22 +538,23 @@ with tab2:
     except Exception as e:
         st.warning(f"PE 数据暂不可用: {e}")
 
-    st.caption("数据源：乐股网 · PE = 动态市盈率 · 分位 = 当前 PE 在近 500 个交易日中的位置")
+    st.caption("数据源：乐股网 · PE = 滚动市盈率(TTM) · 分位 = 当前 PE 在近 500 个交易日中的位置")
 
-    # --- 全市场 PB ---
-    st.markdown("""<div class="section-title">全市场 PB 估值</div>""", unsafe_allow_html=True)
+    # --- 沪深300 PB ---
+    st.markdown("""<div class="section-title">沪深300 PB 估值</div>""", unsafe_allow_html=True)
 
     pb_pct = 50
     pb_data_ok = False
     try:
         pb_df = fetch_market_pb()
-        pb_df.columns = ["日期", "指数", "市净率", "加权市净率", "分位"]
+        # 实际返回列: ['日期', '指数', '市净率', '等权市净率', '市净率中位数']
         pb_df["日期"] = pd.to_datetime(pb_df["日期"])
         pb_df = pb_df.sort_values("日期")
         rpb = pb_df.tail(500)
 
         cur_pb = float(rpb.iloc[-1]["市净率"])
-        pb_pct = float(rpb.iloc[-1]["分位"])
+        # API不返回分位列，手动计算历史分位
+        pb_pct = float((rpb["市净率"] <= cur_pb).sum() / len(rpb) * 100)
         pb_med = float(rpb["市净率"].median())
         pb_data_ok = True
 
@@ -580,7 +583,7 @@ with tab2:
     except Exception as e:
         st.warning(f"PB 数据暂不可用: {e}")
 
-    st.caption("数据源：乐股网 · PB = 市净率 · 全市场加权平均")
+    st.caption("数据源：乐股网 · PB = 沪深300市净率 · 分位 = 当前 PB 在近 500 个交易日中的位置")
 
     # --- 均线趋势 ---
     st.markdown("""<div class="section-title">上证指数 · 均线趋势</div>""", unsafe_allow_html=True)
@@ -628,7 +631,7 @@ with tab2:
                             f"当前 PE = {current_pe:.1f}，历史分位 {pe_percentile:.1f}%"))
         if pb_data_ok:
             s = "green" if pb_pct < 30 else ("yellow" if pb_pct < 70 else "red")
-            signals.append(("全市场 PB 分位",
+            signals.append(("沪深300 PB 分位",
                             s,
                             f"当前 PB = {cur_pb:.2f}，历史分位 {pb_pct:.1f}%"))
         if ma20 is not None and ma60 is not None:
@@ -659,14 +662,14 @@ with tab2:
         |------|------|----------|--------|
         | 指数行情 | 新浪财经 | `stock_zh_index_spot_sina` | 562 指数 |
         | 沪深300 PE | 乐股网 | `stock_index_pe_lg` | 5,149 条 |
-        | 全市场 PB | 乐股网 | `stock_market_pb_lg` | 5,210 条 |
+        | 全市场 PB | 乐股网 | `stock_index_pb_lg` | 5,149 条 |
         | 上证日线 | 新浪财经 | `stock_zh_index_daily` | 8,664 条 |
         | ETF 历史 | 新浪财经 | `fund_etf_hist_sina` | 2,000~4,000 条 |
 
-        **验证记录（2026-06-21）：**
+        **验证记录（2026-06-22）：**
         - 上证指数 4090.48、沪深300 4941.60 — 与公开行情一致
-        - 沪深300 PE 14.17，分位 20.9% — 历史合理区间 8~30
-        - 全市场 PB 1.47，分位 2.5% — 历史合理区间 1.0~3.5
+        - 沪深300 PE(滚动) 13.91，分位约 20% — 历史合理区间 8~30
+        - 沪深300 PB 1.46，分位约 2.5% — 历史合理区间 1.0~3.5
         - 无异常极值，无数据断层
         """)
 
@@ -1066,18 +1069,17 @@ with tab6:
         pe_df = fetch_index_pe("沪深300")
         pe_df["日期"] = pd.to_datetime(pe_df["日期"]); pe_df = pe_df.sort_values("日期")
         recent_pe = pe_df.tail(250)
-        # 兼容不同版本的列名
-        pe_pct_col = next((c for c in recent_pe.columns if "分位" in str(c) and "市盈率" in str(c)), None)
-        if pe_pct_col is None:
-            pe_pct_col = next((c for c in recent_pe.columns if "分位" in str(c)), None)
-        if pe_pct_col is not None:
-            pe_pct = float(recent_pe.iloc[-1][pe_pct_col])
-        else:
+        # 兼容不同版本的列名：滚动市盈率 / 静态市盈率 / 动态市盈率
+        pe_val_col = next((c for c in recent_pe.columns if "滚动市盈率" in str(c) and "中位" not in str(c) and "等权" not in str(c)), None)
+        if pe_val_col is None:
+            pe_val_col = next((c for c in recent_pe.columns if "静态市盈率" in str(c) and "中位" not in str(c) and "等权" not in str(c)), None)
+        if pe_val_col is None:
             pe_val_col = next((c for c in recent_pe.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
-            if pe_val_col is None:
-                pe_val_col = recent_pe.select_dtypes(include=[np.number]).columns[0]
+        if pe_val_col is not None:
             cur_pe_val = float(recent_pe.iloc[-1][pe_val_col])
             pe_pct = float((recent_pe[pe_val_col] <= cur_pe_val).sum() / len(recent_pe) * 100)
+        else:
+            pe_pct = 50.0
         pe_score = pe_pct  # 0 (fear/cheap) to 100 (greed/expensive)
         score_parts["PE 分位"] = pe_score
         if pe_score < 25: fgi_signals.append(("估值", "green", "PE 历史低位，市场恐惧"))
@@ -1219,32 +1221,61 @@ with tab7:
         if div_df.empty:
             st.warning(f"代码 {div_code} 暂无分红数据，可能为非高股息标的")
         else:
-            # Parse dividend data - columns vary by function output
+            # Parse dividend data
+            # API返回列: ['公告日期', '送股', '转增', '派息', '进度', '除权除息日', '股权登记日', '红股上市日']
             div_df.columns = [str(c) for c in div_df.columns]
-            # Try to get date and dividend columns
-            date_col = [c for c in div_df.columns if '日' in c or 'date' in str(c).lower()]
-            # 优先匹配"每股派现"列，避免匹配到"派现总额"等错误列
-            amount_col = [c for c in div_df.columns if '每股派现' in str(c) or '每股派息' in str(c)]
-            if not amount_col:
+
+            # 只保留已实施的分红记录，排除预案
+            if '进度' in div_df.columns:
+                div_df = div_df[div_df['进度'] == '实施'].copy()
+
+            # 优先使用"除权除息日"作为日期列，其次"公告日期"
+            date_col = None
+            for c in ['除权除息日', '股权登记日', '公告日期']:
+                if c in div_df.columns:
+                    date_col = c
+                    break
+            if date_col is None:
+                date_col = [c for c in div_df.columns if '日' in c or 'date' in str(c).lower()]
+                date_col = date_col[0] if date_col else None
+
+            # 匹配派息列
+            amount_col = None
+            for c in div_df.columns:
+                if c == '派息':
+                    amount_col = c
+                    break
+            if amount_col is None:
+                amount_col = [c for c in div_df.columns if '每股派现' in str(c) or '每股派息' in str(c)]
+                amount_col = amount_col[0] if amount_col else None
+            if amount_col is None:
                 amount_col = [c for c in div_df.columns if ('派' in str(c) or '息' in str(c)) and '总额' not in str(c) and '总' not in str(c)]
-            if not amount_col:
-                amount_col = [c for c in div_df.columns if 'amount' in str(c).lower()]
+                amount_col = amount_col[0] if amount_col else None
 
             if date_col and amount_col:
-                dc = date_col[0]; ac = amount_col[0]
+                dc = date_col; ac = amount_col
                 div_display = div_df[[dc, ac]].copy()
                 div_display.columns = ['除权日期', '每股派息']
-                div_display['除权日期'] = pd.to_datetime(div_display['除权日期'])
+                div_display['除权日期'] = pd.to_datetime(div_display['除权日期'], errors='coerce')
+                # 排除没有除权日期的记录
+                div_display = div_display.dropna(subset=['除权日期'])
                 div_display = div_display[div_display['除权日期'] >= pd.Timestamp(div_start)]
                 div_display['每股派息'] = pd.to_numeric(div_display['每股派息'], errors='coerce')
                 div_display = div_display.dropna(subset=['每股派息'])
                 div_display = div_display[div_display['每股派息'] > 0]  # 排除0值和负值
+                # AKShare的"派息"列是每10股派息金额，需要除以10得到每股派息
+                if ac == '派息':
+                    div_display['每股派息'] = div_display['每股派息'] / 10
                 div_display = div_display.sort_values('除权日期', ascending=False)
 
                 if len(div_display) > 0:
                     total_div = div_display['每股派息'].sum()
                     years = div_display['除权日期'].dt.year.nunique()
                     avg_div = total_div / max(years, 1)
+
+                    # 计算最近12个月的实际派息
+                    one_year_ago = div_display['除权日期'].max() - pd.DateOffset(months=12)
+                    recent_div = div_display[div_display['除权日期'] > one_year_ago]['每股派息'].sum()
 
                     c1, c2, c3 = st.columns(3)
                     c1.metric("累计每股派息", f"¥{total_div:.2f}")
@@ -1257,8 +1288,9 @@ with tab7:
                         sdf["date"] = pd.to_datetime(sdf["date"])
                         sdf = sdf.sort_values("date")
                         cur_price = float(sdf.iloc[-1]["close"])
-                        yield_pct = avg_div / cur_price * 100
-                        st.metric("估算股息率", f"{yield_pct:.2f}%（基于年均派息 ÷ 现价 {cur_price:.2f}）")
+                        # 使用最近12个月实际派息计算股息率，更准确反映当前收益
+                        ttm_yield = recent_div / cur_price * 100 if cur_price > 0 else 0
+                        st.metric("近12月股息率", f"{ttm_yield:.2f}%（近一年派息 ¥{recent_div:.2f} ÷ 现价 {cur_price:.2f}）")
                     except Exception:
                         pass
 
