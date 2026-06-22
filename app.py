@@ -1010,11 +1010,16 @@ with tab5:
         st.line_chart(nb_chart, height=250, color=["#1a56db"])
         latest_nb_date = nb_clean.iloc[-1, 0]
         days_behind = (datetime.now() - latest_nb_date).days
-        stale_warning = ""
-        if days_behind > 30:
-            stale_warning = f" · ⚠️ 数据已滞后 {days_behind} 天，接口可能已失效"
-        st.caption(f"数据源：东方财富 stock_hsgt_hist_em ({len(nb_clean)} 条有效数据) · 单位：亿元"
-                   f" · 最新数据：{latest_nb_date.strftime('%Y-%m-%d')}{stale_warning}")
+        if days_behind > 180:
+            st.warning(
+                f"⚠️ 北上资金历史明细数据已停止更新。最新有效数据为 {latest_nb_date.strftime('%Y-%m-%d')}"
+                f"（{days_behind} 天前），近一年数据均为空值。"
+                f"下方图表仅展示历史数据，不代表当前资金流向。"
+                f"当日资金汇总数据请参考上方「资金流向」板块。"
+            )
+        elif days_behind > 30:
+            st.info(f"数据最新日期：{latest_nb_date.strftime('%Y-%m-%d')}（{days_behind} 天前）")
+        st.caption(f"数据源：东方财富 stock_hsgt_hist_em ({len(nb_clean)} 条有效数据) · 单位：亿元")
     except Exception as e:
         st.warning(f"北上资金历史数据暂不可用: {e}")
 
@@ -1056,7 +1061,7 @@ with tab5:
 # TAB 6 — 恐贪指数
 # ============================================================
 with tab6:
-    st.caption("基于 PE 分位、成交量、RSI、北上资金合成的市场情绪指标")
+    st.caption("基于 PE 分位、成交量、RSI 合成的市场情绪指标（北上资金已移除：历史数据停更）")
 
     score_parts = {}
     fgi_signals = []
@@ -1117,27 +1122,10 @@ with tab6:
     except Exception as e:
         rsi_score = 50
 
-    # 4. Northbound score (col 1 = net buy in 亿元, drop NaN)
-    try:
-        nb = fetch_northbound_hist()
-        nb.iloc[:, 0] = pd.to_datetime(nb.iloc[:, 0])
-        nb = nb.sort_values(nb.columns[0])
-        nb_clean = nb.dropna(subset=[nb.columns[1]])
-        recent_nb = nb_clean.tail(20)
-        nb_net = float(recent_nb.iloc[:, 1].sum())
-        nb_score = 50 + (nb_net / 100) * 0.5
-        nb_score = min(100, max(0, nb_score))
-        score_parts["北上资金"] = nb_score
-        # 检查数据时效性
-        nb_latest = nb_clean.iloc[-1, 0]
-        nb_days_behind = (datetime.now() - nb_latest).days
-        if nb_days_behind > 90:
-            fgi_signals.append(("北上资金", "yellow", f"近20日净流出 {abs(nb_net):.1f} 亿（数据滞后{nb_days_behind}天，仅供参考）"))
-        elif nb_net > 50: fgi_signals.append(("北上资金", "green", f"近20日净流入 {nb_net:.1f} 亿"))
-        elif nb_net < -50: fgi_signals.append(("北上资金", "red", f"近20日净流出 {abs(nb_net):.1f} 亿"))
-        else: fgi_signals.append(("北上资金", "yellow", f"近20日 {nb_net:+.1f} 亿"))
-    except Exception as e:
-        nb_score = 50
+    # 4. Northbound score — REMOVED
+    # 北上资金历史明细 API (stock_hsgt_hist_em) 自 2024 年 8 月起净买额列为空值，
+    # 有效数据滞后 675+ 天，无法反映当前市场情绪，已从恐贪指数中移除。
+    # 当日北上资金汇总数据仍可在 Tab5「资金流向」中查看。
 
     # Composite
     fgi = sum(score_parts.values()) / max(len(score_parts), 1)
@@ -1174,7 +1162,7 @@ with tab6:
     for name, col, desc in fgi_signals:
         st.markdown(f"<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:{dot_c[col]};margin-right:6px;'></span><strong>{name}</strong> — {desc}", unsafe_allow_html=True)
 
-    st.caption("数据源：乐股网(PE分位) · 新浪财经(成交量/RSI) · 东方财富(北上资金) · 复合计算")
+    st.caption("数据源：乐股网(PE分位) · 新浪财经(成交量/RSI) · 复合计算")
 
     st.info("恐贪指数是基于公开数据的复合指标，范围为 0-100。0 = 极度恐惧（历史性机会），100 = 极度贪婪（高风险）。仅供参考，不构成投资建议。")
 
