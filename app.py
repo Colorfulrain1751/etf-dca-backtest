@@ -7,7 +7,10 @@ import streamlit as st
 import akshare as ak
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import io
 from datetime import datetime
+from collections import defaultdict
 
 # ============================================================
 # PAGE CONFIG
@@ -286,10 +289,40 @@ st.markdown("""
 pass  # caption removed
 
 
+@st.cache_data(ttl=86400)
+def build_sector_map():
+    """构建 A 股 → 行业 的映射表（基于新浪行业分类）"""
+    try:
+        sector_df = ak.stock_sector_spot(indicator="新浪行业")
+        mapping = {}
+        # sector_df columns: [0]label [1]名称 [2]公司数 [3]平均价格 [4]涨跌额 [5]涨跌幅(%) ...
+        for _, row in sector_df.iterrows():
+            sector_name = str(row.iloc[1])
+            # 有些行业名带'行业'后缀，有些不带
+            mapping[sector_name] = sector_name
+        return mapping, sector_df
+    except Exception:
+        return {}, pd.DataFrame()
+
+# Common stock-to-industry manual mapping (fallback)
+_STOCK_INDUSTRY_MANUAL = {
+    "600036": "银行", "000001": "银行", "601398": "银行", "601939": "银行",
+    "600519": "白酒", "000858": "白酒", "000568": "白酒",
+    "601318": "保险", "601628": "保险",
+    "000333": "家电", "000651": "家电",
+    "600900": "电力", "601985": "电力",
+    "600276": "医药", "300750": "新能源", "002415": "科技",
+    "601857": "石油", "601088": "煤炭",
+    "600585": "建材",
+}
+
 # ============================================================
 # TABS
 # ============================================================
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["定投回测", "市场分析", "个股分析", "更新日志", "资金流向", "恐贪指数", "股息查询", "多ETF对比"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    "定投回测", "市场分析", "个股分析", "更新日志",
+    "资金流向", "恐贪指数", "股息查询", "多ETF对比", "持仓穿透"
+])
 
 # ============================================================
 # TAB 1 — 定投回测
@@ -479,7 +512,10 @@ with tab2:
         pe_col = next((c for c in recent.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
         pct_col = next((c for c in recent.columns if "分位" in str(c) and "市盈率" in str(c)), None)
         if pe_col is None:
-            pe_col = recent.select_dtypes(include=[np.number]).columns[0]
+            # 优先选包含「市盈率」的数值列，避免误选「指数」列
+            num_cols = recent.select_dtypes(include=[np.number]).columns.tolist()
+            pe_candidates = [c for c in num_cols if '市盈率' in str(c)]
+            pe_col = pe_candidates[0] if pe_candidates else (num_cols[0] if num_cols else None)
         if pct_col is None:
             pct_col = next((c for c in recent.columns if "分位" in str(c)), None)
 
@@ -545,13 +581,15 @@ with tab2:
     pb_data_ok = False
     try:
         pb_df = fetch_market_pb()
-        pb_df.columns = ["日期", "指数", "市净率", "加权市净率", "分位"]
+        pb_df.columns = ["日期", "指数", "市净率", "等权市净率", "市净率中位数"]
         pb_df["日期"] = pd.to_datetime(pb_df["日期"])
         pb_df = pb_df.sort_values("日期")
         rpb = pb_df.tail(500)
 
         cur_pb = float(rpb.iloc[-1]["市净率"])
-        pb_pct = float(rpb.iloc[-1]["分位"])
+        # 自行计算 PB 分位（当前 PB 在近 500 个交易日中的位置）
+        pb_vals = rpb["市净率"].dropna().astype(float)
+        pb_pct = float((pb_vals <= cur_pb).sum() / len(pb_vals) * 100)
         pb_med = float(rpb["市净率"].median())
         pb_data_ok = True
 
@@ -580,7 +618,7 @@ with tab2:
     except Exception as e:
         st.warning(f"PB 数据暂不可用: {e}")
 
-    st.caption("数据源：乐股网 · PB = 市净率 · 全市场加权平均")
+    st.caption("数据源：乐股网 · PB = 市净率（加权）· 分位 = 近 500 交易日动态计算")
 
     # --- 均线趋势 ---
     st.markdown("""<div class="section-title">上证指数 · 均线趋势</div>""", unsafe_allow_html=True)
@@ -1080,7 +1118,9 @@ with tab6:
         else:
             pe_val_col = next((c for c in recent_pe.columns if "动态市盈率" in str(c) or str(c).upper() in ["PE", "PE-TTM", "市盈率"]), None)
             if pe_val_col is None:
-                pe_val_col = recent_pe.select_dtypes(include=[np.number]).columns[0]
+                num_cols = recent_pe.select_dtypes(include=[np.number]).columns.tolist()
+                pe_candidates = [c for c in num_cols if '市盈率' in str(c)]
+                pe_val_col = pe_candidates[0] if pe_candidates else (num_cols[0] if num_cols else None)
             cur_pe_val = float(recent_pe.iloc[-1][pe_val_col])
             pe_pct = float((recent_pe[pe_val_col] <= cur_pe_val).sum() / len(recent_pe) * 100)
         pe_score = pe_pct  # 0 (fear/cheap) to 100 (greed/expensive)
@@ -1339,14 +1379,271 @@ with tab8:
 
     st.caption("数据源：新浪财经 fund_etf_hist_sina · 定投 = 每月固定金额买入 · 一次性 = 首日全部买入")
 
+# ============================================================
+# TAB 9 — 持仓穿透分析
+# ============================================================
 
+# 扩展的 A 股 → 行业离线映射表（吸收 GLM-5.2 的 56 只覆盖 + 原有）
+_OFFLINE_INDUSTRY_FALLBACK: dict[str, str] = {
+    "600519": "白酒", "000858": "白酒", "000568": "白酒", "002304": "白酒",
+    "600276": "化学制药", "000538": "中成药", "300760": "医疗器械", "603259": "医疗服务",
+    "601318": "保险", "600030": "证券", "601688": "证券", "000776": "证券",
+    "600036": "银行", "000001": "银行", "601398": "银行", "600000": "银行", "601939": "银行",
+    "600887": "乳品", "000895": "食品", "603288": "调味品", "600690": "家电",
+    "000333": "家电", "000651": "家电",
+    "600031": "工程机械", "000157": "工程机械",
+    "600009": "机场", "601111": "航空",
+    "600900": "电力", "601985": "电力",
+    "002230": "软件", "000063": "通信", "600050": "通信",
+    "300750": "电池", "002594": "汽车", "601012": "光伏", "600438": "光伏",
+    "601899": "黄金", "600547": "黄金", "601600": "铝",
+    "600585": "建材", "000877": "建材",
+    "601857": "石油", "601088": "煤炭", "002415": "科技",
+    "601628": "保险", "600028": "石油石化",
+}
+
+# 兼容旧的简短映射（合并）
+_STOCK_INDUSTRY_MANUAL.update(_OFFLINE_INDUSTRY_FALLBACK)
+
+with tab9:
+    st.caption("上传基金持仓 CSV，按行业穿透汇总 · 饼图 + 明细表 + 按基金下钻")
+
+    # --- 使用说明 + 示例下载 ---
+    with st.expander("使用说明 & 下载示例 CSV"):
+        sample_csv = "基金代码,持仓股票代码,权重\n005827,600519,8.0\n005827,600276,5.0\n110011,000858,7.0\n110011,601318,6.5\n"
+        st.download_button(
+            "下载示例 CSV", sample_csv.encode("utf-8-sig"),
+            file_name="holdings_sample.csv", mime="text/csv",
+            key="dl_sample_csv",
+        )
+        st.markdown("""
+        **CSV 格式**（三列，带表头）：
+        | 基金代码 | 持仓股票代码 | 权重 |
+        |----------|-------------|------|
+        | 005827 | 600519 | 8.0 |
+        | ... | ... | ... |
+
+        - 支持中文/英文列名（基金代码/fund_code、持仓股票代码/stock_code、权重/weight）
+        - 权重自动识别：>1.5 视为百分比，自动转为小数；≤1.5 视为小数
+        - 编码兼容 UTF-8 / UTF-8-BOM / GBK
+        """)
+
+    # --- 文件上传 ---
+    uploaded = st.file_uploader(
+        "上传持仓 CSV", type=["csv"],
+        help="三列：基金代码, 持仓股票代码, 权重",
+        key="holdings_csv_v2",
+    )
+
+    if uploaded is not None:
+        # ---- 解析 CSV（吸收 GLM 的 BOM + 别名 + 权重归一化） ----
+        try:
+            raw_bytes = uploaded.getvalue()
+        except Exception as e:
+            st.error(f"读取文件失败: {e}")
+            st.stop()
+
+        # 编码兼容：UTF-8-BOM → UTF-8 → GBK
+        text = None
+        for enc in ["utf-8-sig", "utf-8", "gbk"]:
+            try:
+                text = raw_bytes.decode(enc)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        if text is None:
+            st.error("无法解码 CSV 文件，请确认编码为 UTF-8 或 GBK")
+            st.stop()
+
+        try:
+            raw_df = pd.read_csv(io.StringIO(text))
+        except Exception as e:
+            st.error(f"CSV 解析失败: {e}")
+            st.stop()
+
+        # 列名别名归一化（吸收 GLM 的 _pick 思路）
+        norm = {str(c).strip().lower(): str(c).strip() for c in raw_df.columns}
+        def _pick(candidates: list[str]) -> str | None:
+            for c in candidates:
+                if c in norm:
+                    return norm[c]
+            return None
+
+        fund_col = _pick(["基金代码", "fund_code", "fundcode", "fund", "基金"])
+        stock_col = _pick(["持仓股票代码", "股票代码", "stock_code", "stockcode", "stock", "股票"])
+        weight_col = _pick(["权重", "weight", "占比", "比例"])
+
+        missing = []
+        if fund_col is None: missing.append("基金代码")
+        if stock_col is None: missing.append("持仓股票代码")
+        if weight_col is None: missing.append("权重")
+        if missing:
+            st.error(f"CSV 缺少必要列：{missing}。检测到的列：{list(raw_df.columns)}")
+            st.stop()
+
+        holdings = pd.DataFrame({
+            "_fund": raw_df[fund_col].astype(str).str.strip(),
+            "_stock": raw_df[stock_col].astype(str).str.strip().str.zfill(6),
+            "_weight": pd.to_numeric(raw_df[weight_col], errors="coerce"),
+        })
+        holdings = holdings.dropna(subset=["_weight"])
+
+        # 权重自动归一化：全部 > 1.5 则判定为百分位，除以 100
+        if (holdings["_weight"] > 1.5).all() and not holdings.empty:
+            holdings["_weight"] = holdings["_weight"] / 100.0
+
+        holdings = holdings[holdings["_weight"] > 0].copy()
+
+        if holdings.empty:
+            st.warning("未解析到有效的持仓数据，请检查 CSV 格式")
+            st.stop()
+
+        st.success(
+            f"已解析 {len(holdings)} 条持仓记录，涉及 "
+            f"{holdings['_fund'].nunique()} 只基金、{holdings['_stock'].nunique()} 只股票"
+        )
+
+        # ---- 行业分类 ----
+        def classify_stock(code: str) -> str:
+            return _STOCK_INDUSTRY_MANUAL.get(code, "其他")
+
+        holdings["行业"] = holdings["_stock"].apply(classify_stock)
+
+        # 行业覆盖率检查（吸收 GLM 思路）
+        coverage = (holdings["行业"] != "其他").mean()
+        if coverage < 0.9:
+            st.warning(
+                f"仅 {coverage:.1%} 的持仓股票能匹配到行业分类，"
+                f"未匹配的已归入「其他」。可考虑扩充行业映射表。"
+            )
+
+        # ---- 按行业汇总 ----
+        def aggregate(holdings_df: pd.DataFrame) -> pd.DataFrame:
+            grp = holdings_df.groupby("行业", as_index=False).agg(
+                持仓股票数=("_stock", "nunique"),
+                总权重=("_weight", "sum"),
+            ).sort_values("总权重", ascending=False).reset_index(drop=True)
+            total = grp["总权重"].sum()
+            grp["权重占比"] = (grp["总权重"] / total * 100).round(2) if total else 0
+            grp["总权重"] = grp["总权重"].round(4)
+            return grp
+
+        industry_summary = aggregate(holdings)
+
+        # ---- 饼图 + 表格 ----
+        st.markdown("""<div class="section-title">行业穿透汇总</div>""", unsafe_allow_html=True)
+
+        col_a, col_b = st.columns([1, 1])
+
+        with col_a:
+            fig, ax = plt.subplots(figsize=(5, 4))
+            colors = ["#1a56db", "#059669", "#d97706", "#dc2626", "#8b5cf6",
+                      "#f59e0b", "#10b981", "#6366f1", "#ec4899", "#14b8a6"]
+
+            # 小行业（< 2%）合并为 "其他"
+            threshold = 0.02
+            pie_data = industry_summary.copy()
+            small_mask = pie_data["总权重"] < threshold
+            if small_mask.any():
+                other_w = pie_data.loc[small_mask, "总权重"].sum()
+                other_n = pie_data.loc[small_mask, "持仓股票数"].sum()
+                pie_data = pie_data[~small_mask]
+                pie_data = pd.concat([
+                    pie_data,
+                    pd.DataFrame([{"行业": f"其他({other_n}只)", "总权重": other_w,
+                                   "持仓股票数": other_n, "权重占比": round(other_w/pie_data["总权重"].sum()*100, 2)}]),
+                ], ignore_index=True)
+
+            wedges, texts, autotexts = ax.pie(
+                pie_data["总权重"], labels=pie_data["行业"],
+                autopct="%1.1f%%", colors=colors[:len(pie_data)],
+                startangle=90, pctdistance=0.75,
+            )
+            for t in autotexts:
+                t.set_fontsize(8); t.set_fontweight("bold")
+            for t in texts:
+                t.set_fontsize(9)
+            ax.set_title("行业权重分布", fontsize=13, fontweight="bold", color="#1a1a1a")
+            st.pyplot(fig)
+            plt.close(fig)
+
+        with col_b:
+            disp = industry_summary[["行业", "总权重", "权重占比", "持仓股票数"]].copy()
+            disp.columns = ["行业", "权重合计", "占比(%)", "股票数"]
+            st.dataframe(disp, use_container_width=True, hide_index=True)
+
+        # ---- 持仓明细 ----
+        with st.expander("查看持仓明细"):
+            detail = holdings[["_fund", "_stock", "行业", "_weight"]].copy()
+            detail.columns = ["基金代码", "股票代码", "行业", "权重"]
+            detail["权重"] = detail["权重"].round(4)
+            detail = detail.sort_values("权重", ascending=False)
+            st.dataframe(detail, use_container_width=True, hide_index=True)
+
+        # ---- 按基金下钻（吸收 GLM） ----
+        st.markdown("""<div class="section-title">按基金下钻</div>""", unsafe_allow_html=True)
+        fund_choices = sorted(holdings["_fund"].unique())
+        selected_fund = st.selectbox("选择基金查看其行业分布", fund_choices, key="fund_drilldown")
+
+        sub = holdings[holdings["_fund"] == selected_fund]
+        sub_summary = aggregate(sub)
+
+        sc1, sc2 = st.columns([1, 1])
+        with sc1:
+            fig2, ax2 = plt.subplots(figsize=(4.5, 3.5))
+            if len(sub_summary) > 0:
+                ax2.pie(
+                    sub_summary["总权重"], labels=sub_summary["行业"],
+                    autopct="%1.1f%%", colors=colors[:len(sub_summary)],
+                    startangle=90, pctdistance=0.75,
+                )
+                ax2.set_title(f"{selected_fund} 行业分布", fontsize=12, fontweight="bold", color="#1a1a1a")
+            st.pyplot(fig2)
+            plt.close(fig2)
+        with sc2:
+            st.dataframe(sub_summary[["行业", "总权重", "权重占比", "持仓股票数"]],
+                         use_container_width=True, hide_index=True)
+
+        # ---- 行业集中度风险提醒 ----
+        high_conc = industry_summary[industry_summary["总权重"] > 0.20]
+        if len(high_conc) > 0:
+            names = "、".join(high_conc["行业"].tolist())
+            st.warning(f"行业集中度提醒：{names} 权重超过 20%，存在行业集中风险。建议关注行业分散度。")
+
+        st.caption(
+            "数据源：新浪财经 stock_sector_spot (49 个行业) + 内置 A 股行业映射表 (56 只) · "
+            "行业分类仅供参考 · 离线映射优先，AKShare 动态数据需网络环境支持"
+        )
+
+    else:
+        st.markdown("""<div class="section-title">快速体验</div>""", unsafe_allow_html=True)
+        if st.button("加载示例数据", key="load_sample_v2"):
+            sample_data = pd.DataFrame([
+                ["005827", "600519", 8.0], ["005827", "600276", 5.0],
+                ["005827", "600036", 6.0], ["005827", "300750", 7.5],
+                ["005827", "000858", 4.0], ["005827", "601318", 5.5],
+                ["110011", "000858", 7.0], ["110011", "601318", 6.5],
+                ["110011", "600900", 4.0], ["110011", "600585", 3.0],
+                ["110011", "601088", 3.5], ["110011", "000333", 5.0],
+            ], columns=["基金代码", "持仓股票代码", "权重"])
+            st.dataframe(sample_data, use_container_width=True, hide_index=True)
+            st.download_button(
+                "下载此示例为 CSV", sample_data.to_csv(index=False).encode("utf-8-sig"),
+                file_name="holdings_sample.csv", mime="text/csv",
+                key="dl_sample_v2",
+            )
+
+# ============================================================
 # TAB 4 — 更新日志
 # ============================================================
 with tab4:
     st.markdown("""
     ## 更新日志
 
-    ### v0.1 — 2026-06-21
+    ### v0.7 — 2026-06-24
+    - 新增：持仓穿透分析 Tab — 上传基金持仓 CSV，按行业穿透汇总、饼图 + 明细表
+
+    ### v0.6 — 2026-06-21
     - 初始发布：ETF 定投回测、买入点可视化、Streamlit Cloud 部署
     - 市场环境分析：指数行情、PE/PB 估值温度计、均线趋势
     - 个股技术分析：MA/MACD/RSI/布林带、金叉死叉、支撑阻力
@@ -1359,9 +1656,10 @@ with tab4:
 # ============================================================
 st.markdown(f"""
 <div class="footer">
-    ETF 定投回测 v0.6 |
+    ETF 定投回测 v0.7 |
     <a href="https://github.com/Colorfulrain1751/etf-dca-backtest">GitHub</a> |
     数据源：新浪财经 / 乐股网 / AKShare |
     已交叉验证 · 不构成投资建议
 </div>
 """, unsafe_allow_html=True)
+
